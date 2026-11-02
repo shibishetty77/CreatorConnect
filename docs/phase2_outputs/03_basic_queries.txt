@@ -1,0 +1,219 @@
+﻿+-------------+------------------------------+-------------------------+---------------------+-----------+-----------+------------+------------+
+| campaign_id | campaign_name                | brand_name              | category_name       | budget    | status    | start_date | end_date   |
++-------------+------------------------------+-------------------------+---------------------+-----------+-----------+------------+------------+
+|           7 | Developer Productivity Hacks | PixelForge Technologies | Technology          | 150000.00 | Open      | 2026-10-01 | 2026-12-31 |
+|          11 | Personal Finance for Gen Z   | PixelForge Technologies | Finance & Education | 100000.00 | Open      | 2026-10-01 | 2026-12-31 |
+|           6 | Festive Ethnic Edit          | NovaThread Apparel      | Fashion             | 400000.00 | Open      | 2026-09-15 | 2026-12-15 |
+|           5 | Clean Beauty Routine         | GlowLeaf Naturals       | Beauty              | 220000.00 | Open      | 2026-09-01 | 2026-11-30 |
+|          10 | Ayurvedic Skincare Myths     | GlowLeaf Naturals       | Beauty              |  90000.00 | Completed | 2026-08-15 | 2026-10-15 |
+|           4 | 30-Day Fitness Challenge     | FitCore Nutrition       | Fitness             | 300000.00 | Ongoing   | 2026-08-01 | 2026-10-31 |
+|           3 | Monsoon Escape Stories       | Wanderly Travel Co.     | Travel              | 180000.00 | Ongoing   | 2026-07-01 | 2026-09-30 |
+|           2 | Next-Gen Gadget Launch       | PixelForge Technologies | Technology          | 500000.00 | Completed | 2026-06-01 | 2026-08-31 |
+|           1 | Summer Street Style 2026     | NovaThread Apparel      | Fashion             | 250000.00 | Completed | 2026-05-01 | 2026-07-31 |
+|           8 | Hidden Beaches of India      | Wanderly Travel Co.     | Travel              | 275000.00 | Completed | 2026-04-15 | 2026-06-30 |
+|           9 | Home Workout Gear Guide      | FitCore Nutrition       | Fitness             | 120000.00 | Completed | 2026-03-01 | 2026-05-31 |
++-------------+------------------------------+-------------------------+---------------------+-----------+-----------+------------+------------+
++------------+-----------------+-----------+---------------+-----------------+---------------------+
+| creator_id | creator_name    | city      | account_count | total_followers | avg_engagement_rate |
++------------+-----------------+-----------+---------------+-----------------+---------------------+
+|          2 | Rohan Mehta     | Mumbai    |             3 |          430000 |                3.87 |
+|          1 | Ananya Rao      | Bengaluru |             2 |          227000 |                4.00 |
+|          6 | Kabir Khan      | Hyderabad |             2 |          222000 |                3.85 |
+|          8 | Aditya Kulkarni | Pune      |             3 |          209000 |                3.00 |
+|          4 | Arjun Singh     | New Delhi |             2 |          202000 |                3.85 |
+|          5 | Meera Iyer      | Chennai   |             2 |          172000 |                3.80 |
+|          3 | Priya Nair      | Kochi     |             2 |          163000 |                3.50 |
+|          7 | Sneha Patel     | Ahmedabad |             2 |          135000 |                3.35 |
++------------+-----------------+-----------+---------------+-----------------+---------------------+
++-------------+------------------------------+--------------------+---------------+----------------+----------------+
+| campaign_id | campaign_name                | total_applications | pending_count | accepted_count | rejected_count |
++-------------+------------------------------+--------------------+---------------+----------------+----------------+
+|           1 | Summer Street Style 2026     |                  4 |             0 |              3 |              1 |
+|           2 | Next-Gen Gadget Launch       |                  4 |             0 |              3 |              1 |
+|           3 | Monsoon Escape Stories       |                  4 |             1 |              2 |              1 |
+|           4 | 30-Day Fitness Challenge     |                  3 |             1 |              2 |              0 |
+|           5 | Clean Beauty Routine         |                  3 |             3 |              0 |              0 |
+|           7 | Developer Productivity Hacks |                  3 |             3 |              0 |              0 |
+|           8 | Hidden Beaches of India      |                  3 |             0 |              2 |              1 |
+|           9 | Home Workout Gear Guide      |                  3 |             0 |              2 |              1 |
+|          10 | Ayurvedic Skincare Myths     |                  3 |             0 |              2 |              1 |
+|           6 | Festive Ethnic Edit          |                  2 |             2 |              0 |              0 |
+|          11 | Personal Finance for Gen Z   |                  2 |             2 |              0 |              0 |
++-------------+------------------------------+--------------------+---------------+----------------+----------------+
++-------------+------------------------------+-------------------+
+| campaign_id | campaign_name                | application_count |
++-------------+------------------------------+-------------------+
+|           1 | Summer Street Style 2026     |                 4 |
+|           2 | Next-Gen Gadget Launch       |                 4 |
+|           3 | Monsoon Escape Stories       |                 4 |
+|           4 | 30-Day Fitness Challenge     |                 3 |
+|           5 | Clean Beauty Routine         |                 3 |
+|           7 | Developer Productivity Hacks |                 3 |
+|           8 | Hidden Beaches of India      |                 3 |
+|           9 | Home Workout Gear Guide      |                 3 |
+|          10 | Ayurvedic Skincare Myths     |                 3 |
++-------------+------------------------------+-------------------+
++----------+-------------------------+----------------+-----------------------+------------------------+
+| brand_id | brand_name              | campaign_count | total_campaign_budget | total_committed_amount |
++----------+-------------------------+----------------+-----------------------+------------------------+
+|        2 | PixelForge Technologies |              3 |             750000.00 |              470000.00 |
+|        1 | NovaThread Apparel      |              2 |             650000.00 |              165000.00 |
+|        3 | Wanderly Travel Co.     |              2 |             455000.00 |              280000.00 |
+|        4 | FitCore Nutrition       |              2 |             420000.00 |              275000.00 |
+|        5 | GlowLeaf Naturals       |              2 |             310000.00 |               85000.00 |
++----------+-------------------------+----------------+-----------------------+------------------------+
++---------+---------------+--------------+-----------------+--------------------+-------------------+
+| status  | payment_count | total_amount | average_payment | first_payment_date | last_payment_date |
++---------+---------------+--------------+-----------------+--------------------+-------------------+
+| Paid    |            13 |   1020000.00 |        78461.54 | 2026-05-26         | 2026-10-12        |
+| Pending |             4 |    255000.00 |        63750.00 | 2026-09-30         | 2026-10-28        |
++---------+---------------+--------------+-----------------+--------------------+-------------------+
++-------------+------------------------------+-----------+------------------+------------------+-----------------+
+| campaign_id | campaign_name                | budget    | committed_amount | remaining_amount | utilization_pct |
++-------------+------------------------------+-----------+------------------+------------------+-----------------+
+|          10 | Ayurvedic Skincare Myths     |  90000.00 |         85000.00 |          5000.00 |            94.4 |
+|           2 | Next-Gen Gadget Launch       | 500000.00 |        470000.00 |         30000.00 |            94.0 |
+|           9 | Home Workout Gear Guide      | 120000.00 |        105000.00 |         15000.00 |            87.5 |
+|           8 | Hidden Beaches of India      | 275000.00 |        195000.00 |         80000.00 |            70.9 |
+|           1 | Summer Street Style 2026     | 250000.00 |        165000.00 |         85000.00 |            66.0 |
+|           4 | 30-Day Fitness Challenge     | 300000.00 |        170000.00 |        130000.00 |            56.7 |
+|           3 | Monsoon Escape Stories       | 180000.00 |         85000.00 |         95000.00 |            47.2 |
+|           5 | Clean Beauty Routine         | 220000.00 |             0.00 |        220000.00 |             0.0 |
+|           6 | Festive Ethnic Edit          | 400000.00 |             0.00 |        400000.00 |             0.0 |
+|           7 | Developer Productivity Hacks | 150000.00 |             0.00 |        150000.00 |             0.0 |
+|          11 | Personal Finance for Gen Z   | 100000.00 |             0.00 |        100000.00 |             0.0 |
++-------------+------------------------------+-----------+------------------+------------------+-----------------+
++------------+-----------------+---------------------+---------------+------------------+
+| creator_id | creator_name    | collaboration_count | paid_earnings | pending_earnings |
++------------+-----------------+---------------------+---------------+------------------+
+|          2 | Rohan Mehta     |                   1 |     180000.00 |             0.00 |
+|          1 | Ananya Rao      |                   3 |     155000.00 |         80000.00 |
+|          6 | Kabir Khan      |                   1 |     150000.00 |             0.00 |
+|          7 | Sneha Patel     |                   4 |     140000.00 |         40000.00 |
+|          8 | Aditya Kulkarni |                   1 |     140000.00 |             0.00 |
+|          3 | Priya Nair      |                   2 |     100000.00 |         45000.00 |
+|          5 | Meera Iyer      |                   2 |     100000.00 |             0.00 |
+|          4 | Arjun Singh     |                   2 |      55000.00 |         90000.00 |
++------------+-----------------+---------------------+---------------+------------------+
++-------------+--------------------------+-----------+
+| campaign_id | campaign_name            | budget    |
++-------------+--------------------------+-----------+
+|           2 | Next-Gen Gadget Launch   | 500000.00 |
+|           6 | Festive Ethnic Edit      | 400000.00 |
+|           4 | 30-Day Fitness Challenge | 300000.00 |
+|           8 | Hidden Beaches of India  | 275000.00 |
+|           1 | Summer Street Style 2026 | 250000.00 |
++-------------+--------------------------+-----------+
++------------+--------------+-----------------+
+| creator_id | creator_name | total_followers |
++------------+--------------+-----------------+
+|          2 | Rohan Mehta  |          430000 |
+|          1 | Ananya Rao   |          227000 |
+|          6 | Kabir Khan   |          222000 |
++------------+--------------+-----------------+
++------------------------------+-------------------------+-----------------+--------------------+----------------------+---------------+----------------+-----------+--------------+
+| campaign_name                | brand_name              | creator_name    | application_status | collaboration_status | agreed_amount | payment_status | amount    | payment_date |
++------------------------------+-------------------------+-----------------+--------------------+----------------------+---------------+----------------+-----------+--------------+
+| Summer Street Style 2026     | NovaThread Apparel      | Ananya Rao      | Accepted           | Completed            |      60000.00 | Paid           |  60000.00 | 2026-07-22   |
+| Summer Street Style 2026     | NovaThread Apparel      | Meera Iyer      | Accepted           | Completed            |      55000.00 | Paid           |  55000.00 | 2026-07-23   |
+| Summer Street Style 2026     | NovaThread Apparel      | Sneha Patel     | Accepted           | Completed            |      50000.00 | Paid           |  50000.00 | 2026-07-24   |
+| Summer Street Style 2026     | NovaThread Apparel      | Aditya Kulkarni | Rejected           | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Next-Gen Gadget Launch       | PixelForge Technologies | Ananya Rao      | Rejected           | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Next-Gen Gadget Launch       | PixelForge Technologies | Rohan Mehta     | Accepted           | Completed            |     180000.00 | Paid           |  90000.00 | 2026-08-26   |
+| Next-Gen Gadget Launch       | PixelForge Technologies | Rohan Mehta     | Accepted           | Completed            |     180000.00 | Paid           |  90000.00 | 2026-08-30   |
+| Next-Gen Gadget Launch       | PixelForge Technologies | Kabir Khan      | Accepted           | Completed            |     150000.00 | Paid           | 150000.00 | 2026-08-27   |
+| Next-Gen Gadget Launch       | PixelForge Technologies | Aditya Kulkarni | Accepted           | Completed            |     140000.00 | Paid           | 140000.00 | 2026-08-28   |
+| Monsoon Escape Stories       | Wanderly Travel Co.     | Ananya Rao      | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Monsoon Escape Stories       | Wanderly Travel Co.     | Priya Nair      | Accepted           | Active               |      45000.00 | Pending        |  45000.00 | 2026-09-30   |
+| Monsoon Escape Stories       | Wanderly Travel Co.     | Meera Iyer      | Rejected           | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Monsoon Escape Stories       | Wanderly Travel Co.     | Sneha Patel     | Accepted           | Active               |      40000.00 | Pending        |  40000.00 | 2026-09-30   |
+| 30-Day Fitness Challenge     | FitCore Nutrition       | Ananya Rao      | Accepted           | Active               |      80000.00 | Pending        |  80000.00 | 2026-10-22   |
+| 30-Day Fitness Challenge     | FitCore Nutrition       | Arjun Singh     | Accepted           | Active               |      90000.00 | Pending        |  90000.00 | 2026-10-28   |
+| 30-Day Fitness Challenge     | FitCore Nutrition       | Kabir Khan      | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Clean Beauty Routine         | GlowLeaf Naturals       | Ananya Rao      | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Clean Beauty Routine         | GlowLeaf Naturals       | Meera Iyer      | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Clean Beauty Routine         | GlowLeaf Naturals       | Sneha Patel     | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Festive Ethnic Edit          | NovaThread Apparel      | Ananya Rao      | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Festive Ethnic Edit          | NovaThread Apparel      | Meera Iyer      | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Developer Productivity Hacks | PixelForge Technologies | Rohan Mehta     | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Developer Productivity Hacks | PixelForge Technologies | Kabir Khan      | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Developer Productivity Hacks | PixelForge Technologies | Aditya Kulkarni | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Hidden Beaches of India      | Wanderly Travel Co.     | Ananya Rao      | Accepted           | Completed            |      95000.00 | Paid           |  95000.00 | 2026-06-27   |
+| Hidden Beaches of India      | Wanderly Travel Co.     | Priya Nair      | Accepted           | Completed            |     100000.00 | Paid           | 100000.00 | 2026-06-26   |
+| Hidden Beaches of India      | Wanderly Travel Co.     | Sneha Patel     | Rejected           | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Home Workout Gear Guide      | FitCore Nutrition       | Ananya Rao      | Rejected           | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Home Workout Gear Guide      | FitCore Nutrition       | Arjun Singh     | Accepted           | Completed            |      55000.00 | Paid           |  55000.00 | 2026-05-26   |
+| Home Workout Gear Guide      | FitCore Nutrition       | Sneha Patel     | Accepted           | Completed            |      50000.00 | Paid           |  50000.00 | 2026-05-27   |
+| Ayurvedic Skincare Myths     | GlowLeaf Naturals       | Ananya Rao      | Rejected           | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Ayurvedic Skincare Myths     | GlowLeaf Naturals       | Meera Iyer      | Accepted           | Completed            |      45000.00 | Paid           |  45000.00 | 2026-10-11   |
+| Ayurvedic Skincare Myths     | GlowLeaf Naturals       | Sneha Patel     | Accepted           | Completed            |      40000.00 | Paid           |  40000.00 | 2026-10-12   |
+| Personal Finance for Gen Z   | PixelForge Technologies | Rohan Mehta     | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
+| Personal Finance for Gen Z   | PixelForge Technologies | Aditya Kulkarni | Pending            | NULL                 |          NULL | NULL           |      NULL | NULL         |
++------------------------------+-------------------------+-----------------+--------------------+----------------------+---------------+----------------+-----------+--------------+
++--------------+------------------+----------------+----------------+---------------+-------------------+
+| content_type | submission_count | approved_count | rejected_count | pending_count | approval_rate_pct |
++--------------+------------------+----------------+----------------+---------------+-------------------+
+| Story        |                7 |              7 |              0 |             0 |             100.0 |
+| Post         |                8 |              7 |              0 |             1 |              87.5 |
+| Reel         |               16 |             13 |              1 |             2 |              81.3 |
+| Video        |                4 |              3 |              0 |             1 |              75.0 |
++--------------+------------------+----------------+----------------+---------------+-------------------+
++-----------+-------------------+-------------------------+----------------------------+-----------------------------+
+| platform  | requirement_count | avg_min_engagement_rate | lowest_min_engagement_rate | highest_min_engagement_rate |
++-----------+-------------------+-------------------------+----------------------------+-----------------------------+
+| Instagram |                 9 |                    2.22 |                       1.50 |                        3.00 |
+| YouTube   |                 5 |                    1.40 |                       1.00 |                        2.00 |
+| LinkedIn  |                 2 |                    1.00 |                       1.00 |                        1.00 |
+| Facebook  |                 1 |                    0.50 |                       0.50 |                        0.50 |
++-----------+-------------------+-------------------------+----------------------------+-----------------------------+
++--------+--------------+---------------------------------------------------------------------------+
+| rating | review_count | reviewed_creators                                                         |
++--------+--------------+---------------------------------------------------------------------------+
+|      5 |            5 | Ananya Rao, Ananya Rao, Rohan Mehta, Meera Iyer, Aditya Kulkarni          |
+|      4 |            6 | Priya Nair, Arjun Singh, Meera Iyer, Kabir Khan, Sneha Patel, Sneha Patel |
+|      3 |            1 | Sneha Patel                                                               |
++--------+--------------+---------------------------------------------------------------------------+
++-------------+--------------------------+-------------+-------------+----------------+--------------+--------------+---------------------+
+| campaign_id | campaign_name            | total_views | total_likes | total_comments | total_shares | total_clicks | engagement_rate_pct |
++-------------+--------------------------+-------------+-------------+----------------+--------------+--------------+---------------------+
+|           2 | Next-Gen Gadget Launch   |      640000 |       49500 |           2490 |         4370 |        19200 |                8.81 |
+|           1 | Summer Street Style 2026 |      310000 |       24300 |           1140 |         1970 |         7800 |                8.84 |
+|           8 | Hidden Beaches of India  |      307000 |       21600 |           1000 |         1890 |         8000 |                7.98 |
+|           4 | 30-Day Fitness Challenge |      216000 |       16500 |            740 |         1340 |         5400 |                8.60 |
+|           9 | Home Workout Gear Guide  |      177000 |       13600 |            580 |         1070 |         4400 |                8.62 |
+|          10 | Ayurvedic Skincare Myths |      169000 |       12900 |            550 |          990 |         4200 |                8.54 |
+|           3 | Monsoon Escape Stories   |      144000 |       10300 |            470 |          810 |         3400 |                8.04 |
++-------------+--------------------------+-------------+-------------+----------------+--------------+--------------+---------------------+
++-------------+---------------------+----------------+--------------+
+| category_id | category_name       | campaign_count | total_budget |
++-------------+---------------------+----------------+--------------+
+|           1 | Fashion             |              2 |    650000.00 |
+|           2 | Technology          |              2 |    650000.00 |
+|           3 | Travel              |              2 |    455000.00 |
+|           4 | Fitness             |              2 |    420000.00 |
+|           5 | Beauty              |              2 |    310000.00 |
+|           7 | Finance & Education |              1 |    100000.00 |
+|           6 | Food & Lifestyle    |              0 |         0.00 |
++-------------+---------------------+----------------+--------------+
++----------+-------------------------+----------------+--------------+
+| brand_id | brand_name              | campaign_count | total_budget |
++----------+-------------------------+----------------+--------------+
+|        2 | PixelForge Technologies |              3 |    750000.00 |
+|        1 | NovaThread Apparel      |              2 |    650000.00 |
+|        3 | Wanderly Travel Co.     |              2 |    455000.00 |
+|        4 | FitCore Nutrition       |              2 |    420000.00 |
+|        5 | GlowLeaf Naturals       |              2 |    310000.00 |
++----------+-------------------------+----------------+--------------+
++-------------+--------------------------+----------+------------+------------+-----------+--------------------+------------------+---------------+----------------------+
+| campaign_id | campaign_name            | brand_id | creator_id | first_name | last_name | application_status | collaboration_id | agreed_amount | collaboration_status |
++-------------+--------------------------+----------+------------+------------+-----------+--------------------+------------------+---------------+----------------------+
+|           1 | Summer Street Style 2026 |        1 |          1 | Ananya     | Rao       | Accepted           |                1 |      60000.00 | Completed            |
+|           1 | Summer Street Style 2026 |        1 |          5 | Meera      | Iyer      | Accepted           |                2 |      55000.00 | Completed            |
+|           1 | Summer Street Style 2026 |        1 |          7 | Sneha      | Patel     | Accepted           |                3 |      50000.00 | Completed            |
+|           1 | Summer Street Style 2026 |        1 |          8 | Aditya     | Kulkarni  | Rejected           |             NULL |          NULL | NULL                 |
+|           2 | Next-Gen Gadget Launch   |        2 |          2 | Rohan      | Mehta     | Accepted           |                4 |     180000.00 | Completed            |
+|           2 | Next-Gen Gadget Launch   |        2 |          6 | Kabir      | Khan      | Accepted           |                5 |     150000.00 | Completed            |
+|           2 | Next-Gen Gadget Launch   |        2 |          1 | Ananya     | Rao       | Rejected           |             NULL |          NULL | NULL                 |
+|           2 | Next-Gen Gadget Launch   |        2 |          8 | Aditya     | Kulkarni  | Accepted           |                6 |     140000.00 | Completed            |
++-------------+--------------------------+----------+------------+------------+-----------+--------------------+------------------+---------------+----------------------+
+

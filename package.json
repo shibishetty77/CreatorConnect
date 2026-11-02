@@ -1,0 +1,31 @@
+{
+  "name": "creatorconnect",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "db:test": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/test-db.ts",
+    "auth:create-admin": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/create-admin.ts",
+    "test:auth": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/test-auth.ts",
+    "test:dashboards": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/test-dashboards.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.14",
+    "mysql2": "^3.24.6",
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

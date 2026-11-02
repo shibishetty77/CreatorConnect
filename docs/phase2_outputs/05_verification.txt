@@ -1,0 +1,195 @@
+﻿+------------------+---------------+------------------------+
+| current_database | mysql_version | lower_case_table_names |
++------------------+---------------+------------------------+
+| creatorconnect   | 8.0.46        |                      1 |
++------------------+---------------+------------------------+
++-------------------+--------------+----------------+--------+
+| check_name        | actual_count | expected_count | result |
++-------------------+--------------+----------------+--------+
+| base_tables       |           15 |             15 | PASS   |
+| check_constraints |           18 |             18 | PASS   |
+| foreign_keys      |           15 |             15 | PASS   |
+| procedures        |            1 |              1 | PASS   |
+| triggers          |            2 |              2 | PASS   |
+| views             |            1 |              1 | PASS   |
++-------------------+--------------+----------------+--------+
++-------------------------+----------------+--------------+--------+
+| table_name              | expected_count | actual_count | result |
++-------------------------+----------------+--------------+--------+
+| applications            |             34 |           34 | PASS   |
+| brands                  |              5 |            5 | PASS   |
+| campaigns               |             11 |           11 | PASS   |
+| campaign_categories     |              7 |            7 | PASS   |
+| campaign_requirements   |             17 |           17 | PASS   |
+| collaborations          |             16 |           16 | PASS   |
+| content_submissions     |             35 |           35 | PASS   |
+| contracts               |             16 |           16 | PASS   |
+| creators                |              8 |            8 | PASS   |
+| creator_social_accounts |             18 |           18 | PASS   |
+| deliverables            |             33 |           33 | PASS   |
+| payments                |             17 |           17 | PASS   |
+| performance_metrics     |             16 |           16 | PASS   |
+| reviews                 |             12 |           12 | PASS   |
+| users                   |             14 |           14 | PASS   |
++-------------------------+----------------+--------------+--------+
++-------------------------+---------+
+| table_name              | result  |
++-------------------------+---------+
+| applications            | PRESENT |
+| brands                  | PRESENT |
+| campaigns               | PRESENT |
+| campaign_categories     | PRESENT |
+| campaign_requirements   | PRESENT |
+| collaborations          | PRESENT |
+| content_submissions     | PRESENT |
+| contracts               | PRESENT |
+| creators                | PRESENT |
+| creator_social_accounts | PRESENT |
+| deliverables            | PRESENT |
+| payments                | PRESENT |
+| performance_metrics     | PRESENT |
+| reviews                 | PRESENT |
+| users                   | PRESENT |
++-------------------------+---------+
++-------------------------------------------------------------------------+--------------+
+| relationship                                                            | orphan_count |
++-------------------------------------------------------------------------+--------------+
+| brands.user_id -> users.user_id                                         |            0 |
+| creators.user_id -> users.user_id                                       |            0 |
+| creator_social_accounts.creator_id -> creators.creator_id               |            0 |
+| campaigns.brand_id -> brands.brand_id                                   |            0 |
+| campaigns.category_id -> campaign_categories.category_id                |            0 |
+| campaign_requirements.campaign_id -> campaigns.campaign_id              |            0 |
+| applications.campaign_id -> campaigns.campaign_id                       |            0 |
+| applications.creator_id -> creators.creator_id                          |            0 |
+| collaborations.application_id -> applications.application_id            |            0 |
+| deliverables.collaboration_id -> collaborations.collaboration_id        |            0 |
+| content_submissions.deliverable_id -> deliverables.deliverable_id       |            0 |
+| contracts.collaboration_id -> collaborations.collaboration_id           |            0 |
+| payments.collaboration_id -> collaborations.collaboration_id            |            0 |
+| performance_metrics.collaboration_id -> collaborations.collaboration_id |            0 |
+| reviews.collaboration_id -> collaborations.collaboration_id             |            0 |
++-------------------------------------------------------------------------+--------------+
++----------------------------------------+-----------------+
+| uniqueness_rule                        | duplicate_count |
++----------------------------------------+-----------------+
+| applications (campaign_id, creator_id) |               0 |
+| collaborations.application_id          |               0 |
+| contracts.collaboration_id             |               0 |
+| performance_metrics.collaboration_id   |               0 |
+| reviews.collaboration_id               |               0 |
++----------------------------------------+-----------------+
++---------------------------------------------------------+-----------------+
+| constraint_check                                        | violation_count |
++---------------------------------------------------------+-----------------+
+| campaigns.budget <= 0                                   |               0 |
+| campaigns.end_date < start_date                         |               0 |
+| campaigns.min_followers < 0                             |               0 |
+| campaigns.creator_limit <= 0                            |               0 |
+| campaigns.max_creators <= 0                             |               0 |
+| collaborations.agreed_amount < 0                        |               0 |
+| collaborations.end_date < start_date                    |               0 |
+| contracts.expiry_date < signed_date                     |               0 |
+| creator_social_accounts.followers < 0                   |               0 |
+| creator_social_accounts.engagement_rate outside 0-100   |               0 |
+| payments.amount < 0                                     |               0 |
+| performance_metrics negative counter                    |               0 |
+| reviews.rating outside 1-5                              |               0 |
+| campaign_requirements.min_engagement_rate outside 0-100 |               0 |
++---------------------------------------------------------+-----------------+
++---------------------------------------------------------------+-----------------+
+| check_name                                                    | violation_count |
++---------------------------------------------------------------+-----------------+
+| Accepted applications without collaboration                   |               0 |
+| Collaborations whose application is not Accepted              |               0 |
+| Campaigns with accepted creators above capacity               |               0 |
+| Campaigns whose paid total exceeds budget                     |               0 |
+| Collaborations whose payment total differs from agreed amount |               0 |
+| Reviews attached to non-completed collaborations              |               0 |
++---------------------------------------------------------------+-----------------+
++-------------------------------------------------+--------------+----------------+
+| check_name                                      | actual_count | expected_count |
++-------------------------------------------------+--------------+----------------+
+| Completed collaborations                        |           12 |             12 |
+| Active collaborations                           |            4 |              4 |
+| Completed collaborations without a Paid payment |            0 |              0 |
+| Active collaborations with a Paid payment       |            0 |              0 |
++-------------------------------------------------+--------------+----------------+
++------------------+----------------------+------------------+----------------------+---------------+
+| collaboration_id | collaboration_status | has_paid_payment | total_payment_amount | agreed_amount |
++------------------+----------------------+------------------+----------------------+---------------+
+|                1 | Completed            |                1 |             60000.00 |      60000.00 |
+|                2 | Completed            |                1 |             55000.00 |      55000.00 |
+|                3 | Completed            |                1 |             50000.00 |      50000.00 |
+|                4 | Completed            |                1 |            180000.00 |     180000.00 |
+|                5 | Completed            |                1 |            150000.00 |     150000.00 |
+|                6 | Completed            |                1 |            140000.00 |     140000.00 |
+|                7 | Active               |                0 |             45000.00 |      45000.00 |
+|                8 | Active               |                0 |             40000.00 |      40000.00 |
+|                9 | Active               |                0 |             90000.00 |      90000.00 |
+|               10 | Active               |                0 |             80000.00 |      80000.00 |
+|               11 | Completed            |                1 |            100000.00 |     100000.00 |
+|               12 | Completed            |                1 |             95000.00 |      95000.00 |
+|               13 | Completed            |                1 |             55000.00 |      55000.00 |
+|               14 | Completed            |                1 |             50000.00 |      50000.00 |
+|               15 | Completed            |                1 |             45000.00 |      45000.00 |
+|               16 | Completed            |                1 |             40000.00 |      40000.00 |
++------------------+----------------------+------------------+----------------------+---------------+
++---------------------------------------------+--------------------+--------------------+---------------+
+| TRIGGER_NAME                                | EVENT_MANIPULATION | EVENT_OBJECT_TABLE | ACTION_TIMING |
++---------------------------------------------+--------------------+--------------------+---------------+
+| complete_collaboration_after_payment_insert | INSERT             | payments           | AFTER         |
+| update_collaboration_after_payment          | UPDATE             | payments           | AFTER         |
++---------------------------------------------+--------------------+--------------------+---------------+
++-----------------------------------------------------+--------------+----------------+
+| check_name                                          | actual_count | expected_count |
++-----------------------------------------------------+--------------+----------------+
+| campaign_creator_summary rows                       |           34 |             34 |
+| campaign_creator_summary rows with collaboration    |           16 |             16 |
+| campaign_creator_summary rows without collaboration |           18 |             18 |
++-----------------------------------------------------+--------------+----------------+
++-------------+--------------------------+----------+------------+------------+-----------+----------------+--------------+--------------------+------------------+---------------+--------------------------+------------------------+----------------------+
+| campaign_id | campaign_name            | brand_id | creator_id | first_name | last_name | application_id | applied_date | application_status | collaboration_id | agreed_amount | collaboration_start_date | collaboration_end_date | collaboration_status |
++-------------+--------------------------+----------+------------+------------+-----------+----------------+--------------+--------------------+------------------+---------------+--------------------------+------------------------+----------------------+
+|           1 | Summer Street Style 2026 |        1 |          1 | Ananya     | Rao       |              1 | 2026-04-20   | Accepted           |                1 |      60000.00 | 2026-05-05               | 2026-07-20             | Completed            |
+|           1 | Summer Street Style 2026 |        1 |          5 | Meera      | Iyer      |              2 | 2026-04-21   | Accepted           |                2 |      55000.00 | 2026-05-06               | 2026-07-21             | Completed            |
+|           1 | Summer Street Style 2026 |        1 |          7 | Sneha      | Patel     |              3 | 2026-04-22   | Accepted           |                3 |      50000.00 | 2026-05-07               | 2026-07-22             | Completed            |
+|           1 | Summer Street Style 2026 |        1 |          8 | Aditya     | Kulkarni  |              4 | 2026-04-23   | Rejected           |             NULL |          NULL | NULL                     | NULL                   | NULL                 |
+|           2 | Next-Gen Gadget Launch   |        2 |          2 | Rohan      | Mehta     |              5 | 2026-05-15   | Accepted           |                4 |     180000.00 | 2026-06-05               | 2026-08-25             | Completed            |
+|           2 | Next-Gen Gadget Launch   |        2 |          6 | Kabir      | Khan      |              6 | 2026-05-16   | Accepted           |                5 |     150000.00 | 2026-06-06               | 2026-08-26             | Completed            |
+|           2 | Next-Gen Gadget Launch   |        2 |          1 | Ananya     | Rao       |              7 | 2026-05-17   | Rejected           |             NULL |          NULL | NULL                     | NULL                   | NULL                 |
+|           2 | Next-Gen Gadget Launch   |        2 |          8 | Aditya     | Kulkarni  |              8 | 2026-05-18   | Accepted           |                6 |     140000.00 | 2026-06-07               | 2026-08-27             | Completed            |
++-------------+--------------------------+----------+------------+------------+-----------+----------------+--------------+--------------------+------------------+---------------+--------------------------+------------------------+----------------------+
++--------------------------------+
+| expected_campaign_1_applicants |
++--------------------------------+
+|                              4 |
++--------------------------------+
++------------+------------+-----------+-----------+----------------+--------------+--------------------+
+| creator_id | first_name | last_name | city      | application_id | applied_date | application_status |
++------------+------------+-----------+-----------+----------------+--------------+--------------------+
+|          8 | Aditya     | Kulkarni  | Pune      |              4 | 2026-04-23   | Rejected           |
+|          7 | Sneha      | Patel     | Ahmedabad |              3 | 2026-04-22   | Accepted           |
+|          5 | Meera      | Iyer      | Chennai   |              2 | 2026-04-21   | Accepted           |
+|          1 | Ananya     | Rao       | Bengaluru |              1 | 2026-04-20   | Accepted           |
++------------+------------+-----------+-----------+----------------+--------------+--------------------+
++------------+------------+-----------+-----------+----------------+--------------+--------------------+
+| creator_id | first_name | last_name | city      | application_id | applied_date | application_status |
++------------+------------+-----------+-----------+----------------+--------------+--------------------+
+|          5 | Meera      | Iyer      | Chennai   |             12 | 2026-06-13   | Rejected           |
+|          1 | Ananya     | Rao       | Bengaluru |             11 | 2026-06-12   | Pending            |
+|          7 | Sneha      | Patel     | Ahmedabad |             10 | 2026-06-11   | Accepted           |
+|          3 | Priya      | Nair      | Kochi     |              9 | 2026-06-10   | Accepted           |
++------------+------------+-----------+-----------+----------------+--------------+--------------------+
++--------+-----------+----------+--------------+----------------+--------------+-------------+----------+---------+
+| brands | campaigns | creators | applications | collaborations | deliverables | submissions | payments | reviews |
++--------+-----------+----------+--------------+----------------+--------------+-------------+----------+---------+
+|      5 |        11 |        8 |           34 |             16 |           33 |          35 |       17 |      12 |
++--------+-----------+----------+--------------+----------------+--------------+-------------+----------+---------+
++-----------------+----------------+--------------+
+| campaign_status | campaign_count | total_budget |
++-----------------+----------------+--------------+
+| Open            |              4 |    870000.00 |
+| Ongoing         |              2 |    480000.00 |
+| Completed       |              5 |   1235000.00 |
++-----------------+----------------+--------------+

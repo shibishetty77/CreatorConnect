@@ -54,6 +54,7 @@ export async function updateAdminCategory(
 ): Promise<AdminCategory> {
   const connection = await pool.getConnection();
   let transactionStarted = false;
+  let connectionDestroyed = false;
 
   try {
     await connection.beginTransaction();
@@ -79,12 +80,16 @@ export async function updateAdminCategory(
       try {
         await connection.rollback();
       } catch (rollbackError) {
+        connection.destroy();
+        connectionDestroyed = true;
         console.error("Admin category update rollback failed:", rollbackError);
       }
     }
     throw error;
   } finally {
-    connection.release();
+    if (!connectionDestroyed) {
+      connection.release();
+    }
   }
   return { categoryId, categoryName: input.categoryName };
 }
@@ -92,6 +97,7 @@ export async function updateAdminCategory(
 export async function deleteAdminCategory(categoryId: number): Promise<void> {
   const connection = await pool.getConnection();
   let transactionStarted = false;
+  let connectionDestroyed = false;
 
   try {
     await connection.beginTransaction();
@@ -130,11 +136,15 @@ export async function deleteAdminCategory(categoryId: number): Promise<void> {
       try {
         await connection.rollback();
       } catch (rollbackError) {
+        connection.destroy();
+        connectionDestroyed = true;
         console.error("Admin category deletion rollback failed:", rollbackError);
       }
     }
     throw error;
   } finally {
-    connection.release();
+    if (!connectionDestroyed) {
+      connection.release();
+    }
   }
 }

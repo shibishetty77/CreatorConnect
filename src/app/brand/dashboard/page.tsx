@@ -38,6 +38,8 @@ export default async function BrandDashboardPage() {
     data.collaborations,
     "Completed",
   );
+  const pendingDeliverables = statusValue(data.deliverables, "Pending");
+  const awaitingReview = statusValue(data.submissions, "Pending");
   const location = [data.profile.city, data.profile.state]
     .filter(Boolean)
     .join(", ");
@@ -112,10 +114,18 @@ export default async function BrandDashboardPage() {
           hint={`${completedCollaborations} completed`}
         />
         <StatCard
+          metricKey="brand.deliverables.pending"
+          label="Pending deliverables"
+          value={formatNumber(pendingDeliverables)}
+          rawValue={pendingDeliverables}
+          hint={`${awaitingReview} submissions awaiting review`}
+          tone={awaitingReview > 0 ? "warning" : "default"}
+        />
+        <StatCard
           metricKey="brand.campaigns.budget"
           label="Sponsorship budget"
           value={formatCurrency(data.totalBudget)}
-          rawValue={Number(data.totalBudget)}
+          rawValue={data.totalBudget}
           hint="Across all campaigns"
         />
       </div>
@@ -169,6 +179,97 @@ export default async function BrandDashboardPage() {
           </dl>
         </section>
       </div>
+
+      <div className="panel-grid">
+        <section className="panel" aria-labelledby="delivery-heading">
+          <div className="panel-header">
+            <div>
+              <h2 id="delivery-heading">Delivery progress</h2>
+              <p>Deliverables and content submissions across your campaigns.</p>
+            </div>
+            <Link className="panel-link" href="/brand/deliverables">
+              Review deliveries
+            </Link>
+          </div>
+          {data.deliverables.total === 0 && data.submissions.total === 0 ? (
+            <p className="empty-note">
+              No delivery work is recorded yet. Accepted applications will appear here after deliverables are created.
+            </p>
+          ) : (
+            <div className="split-lists">
+              <div>
+                <h3>Deliverables</h3>
+                <ul className="status-list">
+                  {Object.entries(data.deliverables.byStatus).map(([status, count]) => (
+                    <li key={status}><StatusBadge status={status} /><strong>{formatNumber(count)}</strong></li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3>Submissions</h3>
+                <ul className="status-list">
+                  {Object.entries(data.submissions.byStatus).map(([status, count]) => (
+                    <li key={status}><StatusBadge status={status} /><strong>{formatNumber(count)}</strong></li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </section>
+        <section className="panel" aria-labelledby="performance-heading">
+          <div className="panel-header">
+            <div>
+              <h2 id="performance-heading">Recorded campaign performance</h2>
+              <p>Totals from metrics entered for your collaborations.</p>
+            </div>
+            <Link className="panel-link" href="/brand/collaborations">
+              Collaborations
+            </Link>
+          </div>
+          <dl className="money-list">
+            <div><dt>Views</dt><dd>{formatNumber(data.performance.views)}</dd></div>
+            <div><dt>Likes</dt><dd>{formatNumber(data.performance.likes)}</dd></div>
+            <div><dt>Comments / shares / clicks</dt><dd>{formatNumber(data.performance.comments)} / {formatNumber(data.performance.shares)} / {formatNumber(data.performance.clicks)}</dd></div>
+          </dl>
+        </section>
+      </div>
+
+      <section className="panel" aria-labelledby="creators-heading">
+        <div className="panel-header">
+          <div>
+            <h2 id="creators-heading">Creators by recorded views</h2>
+            <p>Based on performance metrics associated with your collaborations.</p>
+          </div>
+          <Link className="panel-link" href="/brand/collaborations">
+            View collaborations
+          </Link>
+        </div>
+        {data.topCreators.length === 0 ? (
+          <p className="empty-note">No collaboration performance metrics have been recorded yet.</p>
+        ) : (
+          <div className="data-table-wrap">
+            <table className="data-table">
+              <caption className="sr-only">Creators ranked by recorded views</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Creator</th>
+                  <th scope="col">Collaborations with metrics</th>
+                  <th scope="col">Views</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.topCreators.map((creator) => (
+                  <tr key={creator.creatorId}>
+                    <td>{creator.creatorName}</td>
+                    <td>{formatNumber(creator.collaborationCount)}</td>
+                    <td>{formatNumber(creator.views)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <div className="panel-grid">
         <section className="panel" aria-labelledby="campaign-mix-heading">

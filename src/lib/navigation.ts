@@ -76,12 +76,16 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/creators", label: "Creators", icon: "creators" },
   { href: "/admin/brands", label: "Brands", icon: "brands" },
   { href: "/admin/campaigns", label: "Campaigns", icon: "campaigns" },
+  { href: "/admin/reports", label: "Reports", icon: "overview" },
+  { href: "/admin/categories", label: "Categories", icon: "settings" },
   {
     href: "/admin/collaborations",
     label: "Collaborations",
     icon: "collaborations",
   },
   { href: "/admin/payments", label: "Payments", icon: "payments" },
+  { href: "/admin/reviews", label: "Reviews", icon: "applications" },
+  { href: "/admin/system", label: "System status", icon: "settings" },
   { href: "/admin/settings", label: "Settings", icon: "settings" },
 ];
 

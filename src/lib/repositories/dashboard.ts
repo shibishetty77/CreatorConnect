@@ -36,13 +36,54 @@ type ActivityRow = RowDataPacket & {
   related_id: number;
 };
 
+type RatingSummaryRow = RowDataPacket & {
+  average_rating: number | string | null;
+  review_count: number | string;
+};
+
+type PerformanceSummaryRow = RowDataPacket & {
+  views: number | string | null;
+  likes: number | string | null;
+  comments: number | string | null;
+  shares: number | string | null;
+  clicks: number | string | null;
+};
+
+function sumMoney(values: Array<number | string | null | undefined>): string {
+  const cents = values.reduce((total, value) => {
+    const text = String(value ?? "0");
+    const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+    if (!match) {
+      throw new Error("Database returned an invalid DECIMAL value.");
+    }
+    const [, sign, whole, fraction = ""] = match;
+    const amount = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0").slice(0, 2));
+    return total + (sign === "-" ? -amount : amount);
+  }, 0n);
+  const sign = cents < 0n ? "-" : "";
+  const absolute = cents < 0n ? -cents : cents;
+  return `${sign}${absolute / 100n}.${String(absolute % 100n).padStart(2, "0")}`;
+}
+
 export type CreatorDashboardData = {
   profile: CreatorProfileRecord;
   socialAccounts: SocialAccountRecord[];
+  totalFollowers: string;
+  profileCompleteness: number;
   openCampaigns: number;
   applications: StatusCount;
   collaborations: StatusCount;
   deliverables: StatusCount;
+  submissions: StatusCount;
+  averageRating: string | null;
+  reviewCount: number;
+  performance: {
+    views: string;
+    likes: string;
+    comments: string;
+    shares: string;
+    clicks: string;
+  };
   payments: {
     count: StatusCount;
     paidTotal: string;
@@ -63,6 +104,7 @@ export async function getCreatorDashboardData(
 
   const [
     socialAccounts,
+    followerRows,
     openCampaignRows,
     applicationRows,
     collaborationRows,
@@ -70,10 +112,23 @@ export async function getCreatorDashboardData(
     paymentRows,
     agreedRows,
     activityRows,
+    submissionRows,
+    ratingRows,
+    performanceRows,
   ] = await Promise.all([
     listSocialAccounts(creatorId),
     query<TotalRow[]>(
-      "SELECT COUNT(*) AS total FROM campaigns WHERE status = 'Open'",
+      `SELECT COALESCE(SUM(followers), 0) AS total
+       FROM creator_social_accounts
+       WHERE creator_id = ?`,
+      [creatorId],
+    ),
+    query<TotalRow[]>(
+      `SELECT COUNT(*) AS total
+       FROM campaigns
+       WHERE status = 'Open'
+         AND start_date <= CURRENT_DATE()
+         AND end_date >= CURRENT_DATE()`,
     ),
     query<StatusCountRow[]>(
       "SELECT status, COUNT(*) AS count FROM applications WHERE creator_id = ? GROUP BY status",
@@ -155,30 +210,92 @@ export async function getCreatorDashboardData(
        LIMIT 8`,
       [creatorId, creatorId, creatorId, creatorId],
     ),
+    query<StatusCountRow[]>(
+      `SELECT s.approval_status AS status, COUNT(*) AS count
+       FROM content_submissions s
+       INNER JOIN deliverables d ON d.deliverable_id = s.deliverable_id
+       INNER JOIN collaborations co ON co.collaboration_id = d.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       WHERE a.creator_id = ?
+       GROUP BY s.approval_status`,
+      [creatorId],
+    ),
+    query<RatingSummaryRow[]>(
+      `SELECT AVG(rv.rating) AS average_rating, COUNT(rv.review_id) AS review_count
+       FROM reviews rv
+       INNER JOIN collaborations co ON co.collaboration_id = rv.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       WHERE a.creator_id = ?`,
+      [creatorId],
+    ),
+    query<PerformanceSummaryRow[]>(
+      `SELECT COALESCE(SUM(pm.views), 0) AS views,
+              COALESCE(SUM(pm.likes), 0) AS likes,
+              COALESCE(SUM(pm.comments), 0) AS comments,
+              COALESCE(SUM(pm.shares), 0) AS shares,
+              COALESCE(SUM(pm.clicks), 0) AS clicks
+       FROM performance_metrics pm
+       INNER JOIN collaborations co ON co.collaboration_id = pm.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       WHERE a.creator_id = ?`,
+      [creatorId],
+    ),
   ]);
 
   const paymentCount: Array<{ status: string; count: number | string }> =
     paymentRows.map((row) => ({ status: row.status, count: row.count }));
 
-  const paidTotal = paymentRows
-    .filter((row) => row.status === "Paid")
-    .reduce((sum, row) => sum + Number(row.total ?? 0), 0);
-  const pendingTotal = paymentRows
-    .filter((row) => row.status === "Pending")
-    .reduce((sum, row) => sum + Number(row.total ?? 0), 0);
+  const paidTotal = sumMoney(
+    paymentRows.filter((row) => row.status === "Paid").map((row) => row.total),
+  );
+  const pendingTotal = sumMoney(
+    paymentRows.filter((row) => row.status === "Pending").map((row) => row.total),
+  );
+  const rating = ratingRows[0];
+  const performance = performanceRows[0];
+  const profileFields = [
+    profile.firstName,
+    profile.lastName,
+    profile.phone,
+    profile.bio,
+    profile.city,
+    profile.state,
+    profile.profilePictureUrl,
+    socialAccounts.length > 0 ? "social-account" : null,
+  ];
 
   return {
     profile,
     socialAccounts,
+    totalFollowers: String(followerRows[0]?.total ?? "0"),
+    profileCompleteness: Math.round(
+      (profileFields.filter((value) => value !== null && value.trim().length > 0)
+        .length /
+        profileFields.length) *
+        100,
+    ),
     openCampaigns: Number(openCampaignRows[0]?.total ?? 0),
     applications: statusCount(applicationRows),
     collaborations: statusCount(collaborationRows),
     deliverables: statusCount(deliverableRows),
+    submissions: statusCount(submissionRows),
+    averageRating:
+      rating?.average_rating === null || rating?.average_rating === undefined
+        ? null
+        : String(rating.average_rating),
+    reviewCount: Number(rating?.review_count ?? 0),
+    performance: {
+      views: String(performance?.views ?? "0"),
+      likes: String(performance?.likes ?? "0"),
+      comments: String(performance?.comments ?? "0"),
+      shares: String(performance?.shares ?? "0"),
+      clicks: String(performance?.clicks ?? "0"),
+    },
     payments: {
       count: statusCount(paymentCount),
-      paidTotal: paidTotal.toFixed(2),
-      pendingTotal: pendingTotal.toFixed(2),
-      agreedTotal: Number(agreedRows[0]?.total ?? 0).toFixed(2),
+      paidTotal,
+      pendingTotal,
+      agreedTotal: String(agreedRows[0]?.total ?? "0.00"),
     },
     recentActivity: activityRows.map(mapActivity),
   };
@@ -206,6 +323,21 @@ export type BrandDashboardData = {
   totalBudget: string;
   applications: StatusCount;
   collaborations: StatusCount;
+  deliverables: StatusCount;
+  submissions: StatusCount;
+  performance: {
+    views: string;
+    likes: string;
+    comments: string;
+    shares: string;
+    clicks: string;
+  };
+  topCreators: Array<{
+    creatorId: number;
+    creatorName: string;
+    collaborationCount: number;
+    views: string;
+  }>;
   payments: {
     count: StatusCount;
     paidTotal: string;
@@ -251,7 +383,11 @@ export async function getBrandDashboardData(
     budgetRows,
     applicationRows,
     collaborationRows,
+    deliverableRows,
+    submissionRows,
     paymentRows,
+    performanceRows,
+    topCreatorRows,
     activityRows,
   ] = await Promise.all([
     query<BrandCampaignStatusRow[]>(
@@ -279,6 +415,27 @@ export async function getBrandDashboardData(
        GROUP BY co.status`,
       [brandId],
     ),
+    query<StatusCountRow[]>(
+      `SELECT d.status, COUNT(*) AS count
+       FROM deliverables d
+       INNER JOIN collaborations co ON co.collaboration_id = d.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       WHERE ca.brand_id = ?
+       GROUP BY d.status`,
+      [brandId],
+    ),
+    query<StatusCountRow[]>(
+      `SELECT s.approval_status AS status, COUNT(*) AS count
+       FROM content_submissions s
+       INNER JOIN deliverables d ON d.deliverable_id = s.deliverable_id
+       INNER JOIN collaborations co ON co.collaboration_id = d.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       WHERE ca.brand_id = ?
+       GROUP BY s.approval_status`,
+      [brandId],
+    ),
     query<PaymentSummaryRow[]>(
       `SELECT p.status, COUNT(*) AS count, COALESCE(SUM(p.amount), 0) AS total
        FROM payments p
@@ -287,6 +444,42 @@ export async function getBrandDashboardData(
        INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
        WHERE ca.brand_id = ?
        GROUP BY p.status`,
+      [brandId],
+    ),
+    query<PerformanceSummaryRow[]>(
+      `SELECT COALESCE(SUM(pm.views), 0) AS views,
+              COALESCE(SUM(pm.likes), 0) AS likes,
+              COALESCE(SUM(pm.comments), 0) AS comments,
+              COALESCE(SUM(pm.shares), 0) AS shares,
+              COALESCE(SUM(pm.clicks), 0) AS clicks
+       FROM performance_metrics pm
+       INNER JOIN collaborations co ON co.collaboration_id = pm.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       WHERE ca.brand_id = ?`,
+      [brandId],
+    ),
+    query<
+      (RowDataPacket & {
+        creator_id: number;
+        creator_name: string;
+        collaboration_count: number | string;
+        views: number | string;
+      })[]
+    >(
+      `SELECT cr.creator_id,
+              CONCAT(cr.first_name, ' ', cr.last_name) AS creator_name,
+              COUNT(DISTINCT co.collaboration_id) AS collaboration_count,
+              COALESCE(SUM(pm.views), 0) AS views
+       FROM creators cr
+       INNER JOIN applications a ON a.creator_id = cr.creator_id
+       INNER JOIN collaborations co ON co.application_id = a.application_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       INNER JOIN performance_metrics pm ON pm.collaboration_id = co.collaboration_id
+       WHERE ca.brand_id = ?
+       GROUP BY cr.creator_id, cr.first_name, cr.last_name
+       ORDER BY views DESC, collaboration_count DESC
+       LIMIT 5`,
       [brandId],
     ),
     query<ActivityRow[]>(
@@ -347,12 +540,13 @@ export async function getBrandDashboardData(
     status: row.status,
     count: row.count,
   }));
-  const paidTotal = paymentRows
-    .filter((row) => row.status === "Paid")
-    .reduce((sum, row) => sum + Number(row.total ?? 0), 0);
   const pendingTotal = paymentRows
     .filter((row) => row.status === "Pending")
-    .reduce((sum, row) => sum + Number(row.total ?? 0), 0);
+    .map((row) => row.total);
+  const paidTotal = paymentRows
+    .filter((row) => row.status === "Paid")
+    .map((row) => row.total);
+  const performance = performanceRows[0];
 
   return {
     profile: {
@@ -368,13 +562,28 @@ export async function getBrandDashboardData(
       state: profile.state,
     },
     campaigns: statusCount(campaignRows),
-    totalBudget: Number(budgetRows[0]?.total_budget ?? 0).toFixed(2),
+    totalBudget: String(budgetRows[0]?.total_budget ?? "0.00"),
     applications: statusCount(applicationRows),
     collaborations: statusCount(collaborationRows),
+    deliverables: statusCount(deliverableRows),
+    submissions: statusCount(submissionRows),
+    performance: {
+      views: String(performance?.views ?? "0"),
+      likes: String(performance?.likes ?? "0"),
+      comments: String(performance?.comments ?? "0"),
+      shares: String(performance?.shares ?? "0"),
+      clicks: String(performance?.clicks ?? "0"),
+    },
+    topCreators: topCreatorRows.map((row) => ({
+      creatorId: row.creator_id,
+      creatorName: row.creator_name.trim(),
+      collaborationCount: Number(row.collaboration_count),
+      views: String(row.views),
+    })),
     payments: {
       count: statusCount(paymentCount),
-      paidTotal: paidTotal.toFixed(2),
-      pendingTotal: pendingTotal.toFixed(2),
+      paidTotal: sumMoney(paidTotal),
+      pendingTotal: sumMoney(pendingTotal),
     },
     recentActivity: activityRows.map(mapActivity),
   };
@@ -393,12 +602,12 @@ type AdminMetricRow = RowDataPacket & {
   reviews: number | string;
   paid_total: number | string | null;
   paid_count: number | string;
+  average_rating: number | string | null;
 };
 
 type AdminRecentUserRow = RowDataPacket & {
   user_id: number;
   username: string;
-  email: string;
   role: string;
   created_at: string;
 };
@@ -437,14 +646,17 @@ export type AdminDashboardData = {
     submissions: number;
     reviews: number;
     totalActivity: number;
+    averageRating: string | null;
   };
   paidTotal: string;
   roleCounts: StatusCount;
   campaignStatuses: StatusCount;
+  applicationStatuses: StatusCount;
+  collaborationStatuses: StatusCount;
+  paymentStatuses: StatusCount;
   recentUsers: Array<{
     userId: number;
     username: string;
-    email: string;
     role: string;
     createdAt: string;
   }>;
@@ -473,6 +685,9 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     metricRows,
     roleRows,
     campaignStatusRows,
+    applicationStatusRows,
+    collaborationStatusRows,
+    paymentStatusRows,
     userRows,
     campaignRows,
     collaborationRows,
@@ -490,7 +705,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
          (SELECT COUNT(*) FROM applications) AS applications,
          (SELECT COUNT(*) FROM content_submissions) AS submissions,
          (SELECT COUNT(*) FROM reviews) AS reviews,
-         (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'Paid') AS paid_total`,
+         (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'Paid') AS paid_total,
+         (SELECT AVG(rating) FROM reviews) AS average_rating`,
     ),
     query<StatusCountRow[]>(
       "SELECT role AS status, COUNT(*) AS count FROM users GROUP BY role",
@@ -498,8 +714,17 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     query<StatusCountRow[]>(
       "SELECT status, COUNT(*) AS count FROM campaigns GROUP BY status",
     ),
+    query<StatusCountRow[]>(
+      "SELECT status, COUNT(*) AS count FROM applications GROUP BY status",
+    ),
+    query<StatusCountRow[]>(
+      "SELECT status, COUNT(*) AS count FROM collaborations GROUP BY status",
+    ),
+    query<StatusCountRow[]>(
+      "SELECT status, COUNT(*) AS count FROM payments GROUP BY status",
+    ),
     query<AdminRecentUserRow[]>(
-      `SELECT user_id, username, email, role, created_at
+      `SELECT user_id, username, role, created_at
        FROM users
        ORDER BY created_at DESC, user_id DESC
        LIMIT 6`,
@@ -540,6 +765,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     submissions: Number(metrics?.submissions ?? 0),
     reviews: Number(metrics?.reviews ?? 0),
     totalActivity: 0,
+    averageRating:
+      metrics?.average_rating == null ? null : String(metrics.average_rating),
   };
 
   counts.totalActivity =
@@ -550,13 +777,15 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
 
   return {
     counts,
-    paidTotal: Number(metrics?.paid_total ?? 0).toFixed(2),
+    paidTotal: String(metrics?.paid_total ?? "0.00"),
     roleCounts: statusCount(roleRows),
     campaignStatuses: statusCount(campaignStatusRows),
+    applicationStatuses: statusCount(applicationStatusRows),
+    collaborationStatuses: statusCount(collaborationStatusRows),
+    paymentStatuses: statusCount(paymentStatusRows),
     recentUsers: userRows.map((row) => ({
       userId: row.user_id,
       username: row.username,
-      email: row.email,
       role: row.role,
       createdAt: row.created_at,
     })),
@@ -564,7 +793,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       campaignId: row.campaign_id,
       campaignName: row.campaign_name,
       status: row.status,
-      budget: Number(row.budget).toFixed(2),
+      budget: String(row.budget),
       startDate: row.start_date,
       endDate: row.end_date,
       brandName: row.brand_name,
@@ -572,7 +801,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     recentCollaborations: collaborationRows.map((row) => ({
       collaborationId: row.collaboration_id,
       status: row.status,
-      agreedAmount: Number(row.agreed_amount).toFixed(2),
+      agreedAmount: String(row.agreed_amount),
       startDate: row.start_date,
       creatorName: row.creator_name,
       campaignName: row.campaign_name,

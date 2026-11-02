@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -32,7 +33,12 @@ export default async function AdminDashboardPage() {
       <PageHeader
         eyebrow="Platform overview"
         title="Administrator dashboard"
-        description="A read-only health check across users, campaigns, collaborations, and payments."
+        description="Live summaries of platform activity, stored performance, and financial records."
+        actions={
+          <Link className="btn btn-primary" href="/admin/reports">
+            Open reports
+          </Link>
+        }
       />
 
       <div className="stats-grid stats-grid-wide">
@@ -94,6 +100,16 @@ export default async function AdminDashboardPage() {
           rawValue={data.counts.totalActivity}
           hint="Applications, submissions, reviews, collaborations"
         />
+        <StatCard
+          metricKey="admin.reviews.average"
+          label="Average rating"
+          value={
+            data.counts.averageRating === null
+              ? "—"
+              : `${Number(data.counts.averageRating).toFixed(2)} / 5`
+          }
+          hint={`${formatNumber(data.counts.reviews)} reviews`}
+        />
       </div>
 
       <div className="panel-grid">
@@ -107,25 +123,33 @@ export default async function AdminDashboardPage() {
           <div className="split-lists">
             <div>
               <h3>Accounts by role</h3>
-              <ul className="status-list">
-                {roleEntries.map(([role, count]) => (
-                  <li key={role}>
-                    <StatusBadge status={role} />
-                    <strong>{formatNumber(count)}</strong>
-                  </li>
-                ))}
-              </ul>
+              {roleEntries.length === 0 ? (
+                <p className="empty-note">No accounts have been created.</p>
+              ) : (
+                <ul className="status-list">
+                  {roleEntries.map(([role, count]) => (
+                    <li key={role}>
+                      <StatusBadge status={role} />
+                      <strong>{formatNumber(count)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <div>
               <h3>Campaigns by status</h3>
-              <ul className="status-list">
-                {campaignEntries.map(([status, count]) => (
-                  <li key={status}>
-                    <StatusBadge status={status} />
-                    <strong>{formatNumber(count)}</strong>
-                  </li>
-                ))}
-              </ul>
+              {campaignEntries.length === 0 ? (
+                <p className="empty-note">No campaigns found.</p>
+              ) : (
+                <ul className="status-list">
+                  {campaignEntries.map(([status, count]) => (
+                    <li key={status}>
+                      <StatusBadge status={status} />
+                      <strong>{formatNumber(count)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </section>
@@ -158,11 +182,16 @@ export default async function AdminDashboardPage() {
             </div>
           </dl>
           <p className="panel-note">
-            Admin tools are read-only in Phase 4. Account and moderation actions
-            will be added in a later phase.
+            Payment status changes may complete collaborations through the verified database triggers.
           </p>
         </section>
       </div>
+
+      <div className="panel-grid">
+        <StatusBreakdown title="Applications by status" entries={data.applicationStatuses.byStatus} />
+        <StatusBreakdown title="Collaborations by status" entries={data.collaborationStatuses.byStatus} />
+      </div>
+      <StatusBreakdown title="Payments by status" entries={data.paymentStatuses.byStatus} />
 
       <div className="panel-grid">
         <section className="panel" aria-labelledby="users-heading">
@@ -183,12 +212,11 @@ export default async function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.recentUsers.map((account) => (
+                {data.recentUsers.length === 0 ? (
+                  <tr><td colSpan={3}>No users found.</td></tr>
+                ) : data.recentUsers.map((account) => (
                   <tr key={account.userId}>
-                    <td>
-                      <strong>{account.username}</strong>
-                      <span className="table-subtext">{account.email}</span>
-                    </td>
+                    <td><strong>{account.username}</strong></td>
                     <td>
                       <StatusBadge status={account.role} />
                     </td>
@@ -218,10 +246,14 @@ export default async function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.recentCampaigns.map((campaign) => (
+                {data.recentCampaigns.length === 0 ? (
+                  <tr><td colSpan={3}>No campaigns found.</td></tr>
+                ) : data.recentCampaigns.map((campaign) => (
                   <tr key={campaign.campaignId}>
                     <td>
-                      <strong>{campaign.campaignName}</strong>
+                      <Link href={`/admin/campaigns/${campaign.campaignId}`}>
+                        <strong>{campaign.campaignName}</strong>
+                      </Link>
                       <span className="table-subtext">
                         {campaign.brandName} · {formatDate(campaign.startDate)}
                       </span>
@@ -258,7 +290,9 @@ export default async function AdminDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {data.recentCollaborations.map((collaboration) => (
+              {data.recentCollaborations.length === 0 ? (
+                <tr><td colSpan={5}>No collaborations found.</td></tr>
+              ) : data.recentCollaborations.map((collaboration) => (
                 <tr key={collaboration.collaborationId}>
                   <td>{collaboration.creatorName}</td>
                   <td>
@@ -279,5 +313,29 @@ export default async function AdminDashboardPage() {
         </div>
       </section>
     </>
+  );
+}
+
+function StatusBreakdown({
+  title,
+  entries,
+}: {
+  title: string;
+  entries: Record<string, number>;
+}) {
+  const rows = Object.entries(entries).sort((a, b) => b[1] - a[1]);
+  return (
+    <section className="panel" aria-label={title}>
+      <div className="panel-header"><div><h2>{title}</h2></div></div>
+      {rows.length === 0 ? (
+        <p className="empty-note">No records found.</p>
+      ) : (
+        <ul className="status-list">
+          {rows.map(([status, count]) => (
+            <li key={status}><StatusBadge status={status} /><strong>{formatNumber(count)}</strong></li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

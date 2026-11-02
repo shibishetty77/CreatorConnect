@@ -9,28 +9,18 @@ type AttemptRecord = {
 
 const attempts = new Map<string, AttemptRecord>();
 
-function pruneExpired(now: number): void {
-  if (attempts.size < MAX_TRACKED_KEYS) {
-    return;
-  }
-
-  for (const [key, record] of attempts) {
-    if (record.resetAt <= now) {
-      attempts.delete(key);
-    }
-  }
-}
-
 export function getClientAddress(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
-  const firstForwarded = forwarded?.split(",")[0]?.trim();
-
-  return (
+  const forwardedAddresses = forwarded?.split(",");
+  const firstForwarded = forwardedAddresses
+    ? forwardedAddresses[0]?.trim()
+    : undefined;
+  const address =
     firstForwarded ||
     headers.get("x-real-ip")?.trim() ||
-    headers.get("cf-connecting-ip")?.trim() ||
-    "unknown"
-  );
+    headers.get("cf-connecting-ip")?.trim();
+
+  return address ? address.slice(0, 128) : "unknown";
 }
 
 export function getRateLimitKey(
@@ -45,11 +35,14 @@ export function getRateLimitStatus(key: string): {
   retryAfterSeconds: number;
 } {
   const now = Date.now();
-  pruneExpired(now);
-
   const record = attempts.get(key);
 
-  if (!record || record.resetAt <= now) {
+  if (!record) {
+    return { limited: false, retryAfterSeconds: 0 };
+  }
+
+  if (record.resetAt <= now) {
+    attempts.delete(key);
     return { limited: false, retryAfterSeconds: 0 };
   }
 
@@ -68,6 +61,16 @@ export function recordLoginFailure(key: string): void {
   const existing = attempts.get(key);
 
   if (!existing || existing.resetAt <= now) {
+    if (existing) {
+      attempts.delete(key);
+    } else if (attempts.size >= MAX_TRACKED_KEYS) {
+      const oldestKey = attempts.keys().next().value;
+
+      if (oldestKey !== undefined) {
+        attempts.delete(oldestKey);
+      }
+    }
+
     attempts.set(key, {
       failures: 1,
       resetAt: now + WINDOW_MS,
@@ -76,6 +79,8 @@ export function recordLoginFailure(key: string): void {
   }
 
   existing.failures += 1;
+  attempts.delete(key);
+  attempts.set(key, existing);
 }
 
 export function clearLoginFailures(key: string): void {

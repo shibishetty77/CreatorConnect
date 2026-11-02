@@ -19,7 +19,6 @@ type CreatorProfileRow = RowDataPacket & {
   address: string | null;
   city: string | null;
   state: string | null;
-  profile_picture: string | null;
   profile_picture_url: string | null;
 };
 
@@ -93,7 +92,7 @@ export async function getCreatorProfile(
     `SELECT
        c.creator_id, c.user_id, u.username, u.email,
        c.first_name, c.last_name, c.date_of_birth, c.phone, c.bio,
-       c.address, c.city, c.state, c.profile_picture, c.profile_picture_url
+       c.address, c.city, c.state, c.profile_picture_url
      FROM creators c
      INNER JOIN users u ON u.user_id = c.user_id
      WHERE c.creator_id = ?

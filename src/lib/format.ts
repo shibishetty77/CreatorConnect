@@ -25,12 +25,34 @@ function toDate(value: string): Date | null {
 }
 
 export function formatNumber(value: number | string): string {
+  if (typeof value === "string" && /^-?\d+$/.test(value)) {
+    try {
+      return numberFormatter.format(BigInt(value));
+    } catch {
+      return "0";
+    }
+  }
+
   const numeric = Number(value);
 
   return Number.isFinite(numeric) ? numberFormatter.format(numeric) : "0";
 }
 
 export function formatCurrency(value: number | string): string {
+  if (typeof value === "string") {
+    const decimalMatch = value.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+    if (decimalMatch) {
+      const [, sign, whole, fraction = ""] = decimalMatch;
+      try {
+        const roundUp = Number(fraction[0] ?? "0") >= 5;
+        const rounded = BigInt(whole) + (roundUp ? 1n : 0n);
+        return currencyFormatter.format(sign === "-" ? -rounded : rounded);
+      } catch {
+        return currencyFormatter.format(0);
+      }
+    }
+  }
+
   const numeric = Number(value);
 
   return currencyFormatter.format(Number.isFinite(numeric) ? numeric : 0);

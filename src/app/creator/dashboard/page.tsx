@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { requireRole } from "@/lib/auth/guards";
 import {
   formatCurrency,
@@ -42,17 +43,12 @@ export default async function CreatorDashboardPage() {
   const pendingDeliverables = statusValue(
     data.deliverables,
     "Pending",
-    "Submitted",
   );
   const completedDeliverables = statusValue(
     data.deliverables,
     "Completed",
-    "Approved",
   );
-  const totalFollowers = data.socialAccounts.reduce(
-    (sum, account) => sum + account.followers,
-    0,
-  );
+  const pendingSubmissions = statusValue(data.submissions, "Pending");
   const location = [data.profile.city, data.profile.state]
     .filter(Boolean)
     .join(", ");
@@ -71,6 +67,14 @@ export default async function CreatorDashboardPage() {
       />
 
       <div className="stats-grid">
+        <StatCard
+          metricKey="creator.profile.completeness"
+          label="Profile completeness"
+          value={`${data.profileCompleteness}%`}
+          rawValue={data.profileCompleteness}
+          hint="Profile details and social accounts"
+          tone={data.profileCompleteness === 100 ? "success" : "warning"}
+        />
         <StatCard
           metricKey="creator.open-campaigns"
           label="Open campaigns"
@@ -122,14 +126,28 @@ export default async function CreatorDashboardPage() {
           label="Pending deliverables"
           value={formatNumber(pendingDeliverables)}
           rawValue={pendingDeliverables}
-          hint={`${completedDeliverables} completed`}
+          hint={`${completedDeliverables} completed · ${pendingSubmissions} submissions pending review`}
           tone={pendingDeliverables > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          metricKey="creator.reviews.average"
+          label="Average rating"
+          value={
+            data.averageRating === null
+              ? "—"
+              : `${Number(data.averageRating).toFixed(2)} / 5`
+          }
+          hint={
+            data.reviewCount === 0
+              ? "No collaboration reviews yet"
+              : `From ${formatNumber(data.reviewCount)} reviews`
+          }
         />
         <StatCard
           metricKey="creator.payments.paid"
           label="Paid to date"
           value={formatCurrency(data.payments.paidTotal)}
-          rawValue={Number(data.payments.paidTotal)}
+          rawValue={data.payments.paidTotal}
           hint={`${formatCurrency(data.payments.pendingTotal)} awaiting release`}
           tone="success"
         />
@@ -184,6 +202,50 @@ export default async function CreatorDashboardPage() {
       </div>
 
       <div className="panel-grid">
+        <section className="panel" aria-labelledby="delivery-heading">
+          <div className="panel-header">
+            <div>
+              <h2 id="delivery-heading">Delivery progress</h2>
+              <p>Submission status recorded across your collaborations.</p>
+            </div>
+            <Link className="panel-link" href="/creator/deliverables">
+              Open workspace
+            </Link>
+          </div>
+          {data.submissions.total === 0 ? (
+            <p className="empty-note">
+              No content submissions yet. Active collaboration deliverables will appear in your workspace.
+            </p>
+          ) : (
+            <ul className="status-list">
+              {Object.entries(data.submissions.byStatus).map(([status, count]) => (
+                <li key={status}>
+                  <StatusBadge status={status} />
+                  <strong>{formatNumber(count)}</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="panel" aria-labelledby="performance-heading">
+          <div className="panel-header">
+            <div>
+              <h2 id="performance-heading">Recorded performance</h2>
+              <p>Totals from metrics entered for your collaborations.</p>
+            </div>
+            <Link className="panel-link" href="/creator/collaborations">
+              Collaborations
+            </Link>
+          </div>
+          <dl className="money-list">
+            <div><dt>Views</dt><dd>{formatNumber(data.performance.views)}</dd></div>
+            <div><dt>Likes</dt><dd>{formatNumber(data.performance.likes)}</dd></div>
+            <div><dt>Comments / shares / clicks</dt><dd>{formatNumber(data.performance.comments)} / {formatNumber(data.performance.shares)} / {formatNumber(data.performance.clicks)}</dd></div>
+          </dl>
+        </section>
+      </div>
+
+      <div className="panel-grid">
         <section className="panel" aria-labelledby="profile-heading">
           <div className="panel-header">
             <div>
@@ -219,7 +281,7 @@ export default async function CreatorDashboardPage() {
             <div>
               <h2 id="reach-heading">Social reach</h2>
               <p>
-                {formatNumber(totalFollowers)} followers across{" "}
+                {formatNumber(data.totalFollowers)} followers across{" "}
                 {data.socialAccounts.length} accounts.
               </p>
             </div>

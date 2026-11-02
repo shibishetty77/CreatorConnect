@@ -174,6 +174,8 @@ export async function createUserWithProfile(
   input: CreateUserInput,
 ): Promise<AuthUser> {
   const connection = await pool.getConnection();
+  let connectionDestroyed = false;
+  let userId: number;
 
   try {
     await connection.beginTransaction();
@@ -184,7 +186,7 @@ export async function createUserWithProfile(
       [input.username, input.email, input.passwordHash, input.role],
     );
 
-    const userId = userResult.insertId;
+    userId = userResult.insertId;
 
     if (input.role === "Creator") {
       const parts = input.name.trim().split(/\s+/);
@@ -205,16 +207,20 @@ export async function createUserWithProfile(
     }
 
     await connection.commit();
-
-    const user = await getUserWithProfileById(userId);
-
-    if (!user) {
-      throw new Error("The new account could not be loaded.");
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch (rollbackError) {
+      connection.destroy();
+      connectionDestroyed = true;
+      console.error(
+        "User creation rollback failed; connection discarded:",
+        rollbackError instanceof Error
+          ? rollbackError.message
+          : "Unknown error",
+      );
     }
 
-    return user;
-  } catch (error) {
-    await connection.rollback();
     const duplicate = duplicateAccountError(error);
 
     if (duplicate) {
@@ -223,8 +229,18 @@ export async function createUserWithProfile(
 
     throw error;
   } finally {
-    connection.release();
+    if (!connectionDestroyed) {
+      connection.release();
+    }
   }
+
+  const user = await getUserWithProfileById(userId);
+
+  if (!user) {
+    throw new Error("The new account could not be loaded.");
+  }
+
+  return user;
 }
 
 export type BootstrapAdminInput = {

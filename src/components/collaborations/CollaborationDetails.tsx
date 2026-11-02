@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { ContractPanel } from "@/components/delivery/ContractPanel";
 import { formatDate } from "@/lib/format";
 import type { CollaborationRecord } from "@/lib/repositories/collaborations";
 
@@ -161,6 +162,11 @@ export function CollaborationDetails({
           </button>
         </form>
       ) : null}
+
+      <ContractPanel
+        collaboration={collaboration}
+        role={canEdit ? "brand" : "creator"}
+      />
     </div>
   );
 }

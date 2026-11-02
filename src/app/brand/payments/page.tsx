@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { SectionPlaceholder } from "@/components/dashboard/SectionPlaceholder";
+import { PaymentsWorkspace } from "@/components/finance/PaymentsWorkspace";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 export const metadata: Metadata = {
   title: "Brand payments",
@@ -8,16 +9,13 @@ export const metadata: Metadata = {
 
 export default function BrandPaymentsPage() {
   return (
-    <SectionPlaceholder
-      eyebrow="Sponsorship spend"
-      title="Payments"
-      description="Track paid and pending creator payments against campaign budgets."
-      features={[
-        "Review payment records by creator and campaign.",
-        "See paid and pending amounts together.",
-        "Reconcile sponsorship spend with campaign budgets.",
-      ]}
-      note="Detailed payment workflows arrive in a later phase. Paid, pending, and budget totals are available now on the overview dashboard."
-    />
+    <>
+      <PageHeader
+        eyebrow="Sponsorship spend"
+        title="Payments"
+        description="Review settlement records and payment status for your creator collaborations."
+      />
+      <PaymentsWorkspace role="brand" />
+    </>
   );
 }

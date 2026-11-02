@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { SectionPlaceholder } from "@/components/dashboard/SectionPlaceholder";
+import { CampaignDiscovery } from "@/components/campaigns/CampaignDiscovery";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 export const metadata: Metadata = {
   title: "Discover campaigns",
@@ -8,16 +9,13 @@ export const metadata: Metadata = {
 
 export default function CreatorCampaignsPage() {
   return (
-    <SectionPlaceholder
-      eyebrow="Creator campaigns"
-      title="Discover campaigns"
-      description="Find open briefs that match your audience, niche, and content style."
-      features={[
-        "Filter campaigns by category, budget, and platform.",
-        "Review deliverables and brand requirements before applying.",
-        "Submit applications and track their status from one place.",
-      ]}
-      note="Campaign discovery and application submission will be connected in Phase 5. Your existing applications are already reflected on the overview dashboard."
-    />
+    <>
+      <PageHeader
+        eyebrow="Creator campaigns"
+        title="Discover campaigns"
+        description="Review open campaign briefs and apply when your social accounts meet the stated requirements."
+      />
+      <CampaignDiscovery />
+    </>
   );
 }

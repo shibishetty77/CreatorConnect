@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { missingProfileError, requireApiRole } from "@/lib/auth/api";
 import { mutationGuard } from "@/lib/auth/csrf";
+import { consumeActionRateLimit } from "@/lib/auth/rate-limit";
+import { recordCampaignApplication } from "@/lib/platform-events";
 import {
   applyCreatorToCampaign,
   CampaignApplicationError,
@@ -36,6 +38,22 @@ export async function POST(
     return missingProfileError("Creator");
   }
 
+  const rateLimit = consumeActionRateLimit(
+    `apply-campaign:${actor.user.creatorProfile.creatorId}`,
+    20,
+    10 * 60 * 1000,
+  );
+
+  if (rateLimit.limited) {
+    const response = apiError(
+      429,
+      "RATE_LIMITED",
+      "Too many application attempts. Please wait and try again.",
+    );
+    response.headers.set("Retry-After", String(rateLimit.retryAfterSeconds));
+    return response;
+  }
+
   const { campaignId: rawCampaignId } = await context.params;
   const parsedCampaignId = campaignIdParamSchema.safeParse(rawCampaignId);
 
@@ -52,6 +70,12 @@ export async function POST(
       actor.user.creatorProfile.creatorId,
       parsedCampaignId.data,
     );
+    await recordCampaignApplication({
+      applicationId: application.applicationId,
+      campaignId: parsedCampaignId.data,
+      creatorUserId: actor.user.userId,
+      creatorRole: actor.user.role,
+    });
 
     return apiSuccess({ application }, 201);
   } catch (error) {

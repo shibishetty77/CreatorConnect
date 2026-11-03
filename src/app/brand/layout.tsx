@@ -19,6 +19,7 @@ export default async function BrandLayout({ children }: BrandLayoutProps) {
   return (
     <DashboardShell
       role="Brand"
+      userId={user.userId}
       name={name}
       email={user.email}
       navItems={BRAND_NAV}

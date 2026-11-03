@@ -289,6 +289,36 @@ export async function bootstrapAdmin(
   return { status: "created", userId: result.insertId };
 }
 
+export async function getPasswordHashForUser(
+  userId: number,
+): Promise<string | null> {
+  const rows = await query<RowDataPacket[]>(
+    `SELECT password_hash
+     FROM users
+     WHERE user_id = ?
+     LIMIT 1`,
+    [userId],
+  );
+
+  return rows[0]?.password_hash ?? null;
+}
+
+export async function updatePasswordHash(
+  userId: number,
+  passwordHash: string,
+): Promise<void> {
+  const result = await execute(
+    `UPDATE users
+     SET password_hash = ?
+     WHERE user_id = ?`,
+    [passwordHash, userId],
+  );
+
+  if (result.affectedRows !== 1) {
+    throw new Error("The password could not be updated.");
+  }
+}
+
 export async function userExistsByEmail(email: string): Promise<boolean> {
   const rows = await query<RowDataPacket[]>(
     "SELECT 1 FROM users WHERE email = ? LIMIT 1",

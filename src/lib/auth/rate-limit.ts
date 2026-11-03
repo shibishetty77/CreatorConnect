@@ -8,6 +8,7 @@ type AttemptRecord = {
 };
 
 const attempts = new Map<string, AttemptRecord>();
+const actionAttempts = new Map<string, AttemptRecord>();
 
 export function getClientAddress(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
@@ -85,4 +86,48 @@ export function recordLoginFailure(key: string): void {
 
 export function clearLoginFailures(key: string): void {
   attempts.delete(key);
+}
+
+export function consumeActionRateLimit(
+  key: string,
+  maxAttempts: number,
+  windowMs: number,
+): { limited: boolean; retryAfterSeconds: number } {
+  const now = Date.now();
+  const existing = actionAttempts.get(key);
+
+  if (!existing || existing.resetAt <= now) {
+    if (existing) {
+      actionAttempts.delete(key);
+    } else if (actionAttempts.size >= MAX_TRACKED_KEYS) {
+      const oldestKey = actionAttempts.keys().next().value;
+
+      if (oldestKey !== undefined) {
+        actionAttempts.delete(oldestKey);
+      }
+    }
+
+    actionAttempts.set(key, {
+      failures: 1,
+      resetAt: now + windowMs,
+    });
+
+    return { limited: false, retryAfterSeconds: 0 };
+  }
+
+  if (existing.failures >= maxAttempts) {
+    return {
+      limited: true,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil((existing.resetAt - now) / 1000),
+      ),
+    };
+  }
+
+  existing.failures += 1;
+  actionAttempts.delete(key);
+  actionAttempts.set(key, existing);
+
+  return { limited: false, retryAfterSeconds: 0 };
 }

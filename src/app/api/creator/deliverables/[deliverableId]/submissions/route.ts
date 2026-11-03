@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api/response";
 import { deliveryApiError } from "@/lib/api/delivery";
 import { missingProfileError, requireApiRole } from "@/lib/auth/api";
 import { mutationGuard } from "@/lib/auth/csrf";
+import { recordDeliverableSubmitted } from "@/lib/platform-events";
 import { submitDeliverable } from "@/lib/repositories/delivery";
 import {
   contentSubmissionSchema,
@@ -52,6 +53,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
       parsedId.data,
       parsedBody.data.contentUrl,
     );
+    await recordDeliverableSubmitted({
+      deliverableId: parsedId.data,
+      submissionId: result.submissionId,
+      creatorUserId: actor.user.userId,
+      creatorRole: actor.user.role,
+    });
     return apiSuccess(result, 201);
   } catch (error) {
     return deliveryApiError(error, "Creator content submission failed");

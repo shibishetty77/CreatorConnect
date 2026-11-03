@@ -21,6 +21,7 @@ export default async function CreatorLayout({
   return (
     <DashboardShell
       role="Creator"
+      userId={user.userId}
       name={name}
       email={user.email}
       navItems={CREATOR_NAV}

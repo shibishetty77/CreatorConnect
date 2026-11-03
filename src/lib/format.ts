@@ -100,7 +100,11 @@ export function statusTone(status: string | null | undefined): StatusTone {
     return "warning";
   }
 
-  if (["rejected", "cancelled", "failed", "inactive"].includes(normalized)) {
+  if (
+    ["rejected", "cancelled", "failed", "inactive", "overdue"].includes(
+      normalized,
+    )
+  ) {
     return "danger";
   }
 

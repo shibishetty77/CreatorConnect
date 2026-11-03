@@ -363,6 +363,20 @@ async function main(): Promise<void> {
     `);
 
     await testConnection.query(`
+      CREATE TABLE performance_metrics (
+        metric_id INT NOT NULL AUTO_INCREMENT,
+        collaboration_id INT NOT NULL,
+        views BIGINT DEFAULT 0,
+        likes BIGINT DEFAULT 0,
+        comments BIGINT DEFAULT 0,
+        shares BIGINT DEFAULT 0,
+        clicks BIGINT DEFAULT 0,
+        PRIMARY KEY (metric_id),
+        UNIQUE KEY collaboration_id (collaboration_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+    `);
+
+    await testConnection.query(`
       CREATE TABLE reviews (
         review_id INT NOT NULL AUTO_INCREMENT,
         collaboration_id INT NOT NULL,

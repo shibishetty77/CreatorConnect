@@ -25,6 +25,9 @@ type CollaborationRow = RowDataPacket & {
   start_date: string;
   end_date: string;
   status: CollaborationStatus;
+  deliverable_count: number | string;
+  completed_deliverable_count: number | string;
+  next_due_date: string | null;
 };
 
 export type CollaborationRecord = {
@@ -41,9 +44,16 @@ export type CollaborationRecord = {
   startDate: string;
   endDate: string;
   status: CollaborationStatus;
+  deliverableCount: number;
+  completedDeliverableCount: number;
+  pendingDeliverableCount: number;
+  nextDueDate: string | null;
 };
 
 function mapCollaboration(row: CollaborationRow): CollaborationRecord {
+  const deliverableCount = Number(row.deliverable_count);
+  const completedDeliverableCount = Number(row.completed_deliverable_count);
+
   return {
     collaborationId: row.collaboration_id,
     applicationId: row.application_id,
@@ -60,6 +70,13 @@ function mapCollaboration(row: CollaborationRow): CollaborationRecord {
     startDate: row.start_date,
     endDate: row.end_date,
     status: row.status,
+    deliverableCount,
+    completedDeliverableCount,
+    pendingDeliverableCount: Math.max(
+      0,
+      deliverableCount - completedDeliverableCount,
+    ),
+    nextDueDate: row.next_due_date,
   };
 }
 
@@ -67,13 +84,122 @@ const collaborationSelect = `SELECT co.collaboration_id, co.application_id,
        cr.creator_id, cr.first_name AS creator_first_name,
        cr.last_name AS creator_last_name, creator_user.username AS creator_username,
        b.brand_id, b.brand_name, ca.campaign_id, ca.campaign_name,
-       co.agreed_amount, co.start_date, co.end_date, co.status
+       co.agreed_amount, co.start_date, co.end_date, co.status,
+       (SELECT COUNT(*) FROM deliverables d
+        WHERE d.collaboration_id = co.collaboration_id) AS deliverable_count,
+       (SELECT COUNT(*) FROM deliverables d
+        WHERE d.collaboration_id = co.collaboration_id
+          AND d.status = 'Completed') AS completed_deliverable_count,
+       (SELECT MIN(d.due_date) FROM deliverables d
+        WHERE d.collaboration_id = co.collaboration_id
+          AND d.status = 'Pending') AS next_due_date
 FROM collaborations co
 INNER JOIN applications a ON a.application_id = co.application_id
 INNER JOIN creators cr ON cr.creator_id = a.creator_id
 INNER JOIN users creator_user ON creator_user.user_id = cr.user_id
 INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
 INNER JOIN brands b ON b.brand_id = ca.brand_id`;
+
+type CollaborationCountRow = RowDataPacket & {
+  total: number | string;
+};
+
+type CollaborationStatusCountRow = RowDataPacket & {
+  status: CollaborationStatus;
+  total: number | string;
+};
+
+export type CreatorCollaborationFilters = {
+  q?: string;
+  status?: CollaborationStatus | "all";
+  page: number;
+  pageSize: number;
+};
+
+export type CreatorCollaborationPage = {
+  collaborations: CollaborationRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  statusCounts: Record<CollaborationStatus, number>;
+};
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
+export async function listCreatorCollaborationsPage(
+  creatorId: number,
+  filters: CreatorCollaborationFilters,
+): Promise<CreatorCollaborationPage> {
+  const where = ["cr.creator_id = ?"];
+  const params: Array<string | number> = [creatorId];
+
+  if (filters.status && filters.status !== "all") {
+    where.push("co.status = ?");
+    params.push(filters.status);
+  }
+
+  const search = filters.q?.trim();
+
+  if (search) {
+    const pattern = `%${escapeLike(search)}%`;
+    where.push("(ca.campaign_name LIKE ? OR b.brand_name LIKE ?)");
+    params.push(pattern, pattern);
+  }
+
+  const whereSql = `WHERE ${where.join(" AND ")}`;
+  const offset = (filters.page - 1) * filters.pageSize;
+
+  const [rows, countRows, statusRows] = await Promise.all([
+    query<CollaborationRow[]>(
+      `${collaborationSelect}
+       ${whereSql}
+       ORDER BY co.start_date DESC, co.collaboration_id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, filters.pageSize, offset],
+    ),
+    query<CollaborationCountRow[]>(
+      `SELECT COUNT(*) AS total
+       FROM collaborations co
+       INNER JOIN applications a ON a.application_id = co.application_id
+       INNER JOIN creators cr ON cr.creator_id = a.creator_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       INNER JOIN brands b ON b.brand_id = ca.brand_id
+       ${whereSql}`,
+      params,
+    ),
+    query<CollaborationStatusCountRow[]>(
+      `SELECT co.status, COUNT(*) AS total
+       FROM collaborations co
+       INNER JOIN applications a ON a.application_id = co.application_id
+       WHERE a.creator_id = ?
+       GROUP BY co.status`,
+      [creatorId],
+    ),
+  ]);
+
+  const statusCounts: Record<CollaborationStatus, number> = {
+    Active: 0,
+    Completed: 0,
+  };
+
+  for (const row of statusRows) {
+    statusCounts[row.status] = Number(row.total);
+  }
+
+  const total = Number(countRows[0]?.total ?? 0);
+
+  return {
+    collaborations: rows.map(mapCollaboration),
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+    statusCounts,
+  };
+}
 
 export async function listCreatorCollaborations(
   creatorId: number,

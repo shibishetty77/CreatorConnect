@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { AdminSystemWorkspace } from "@/components/admin/AdminSystemWorkspace";
+import { MongoSystemStatus } from "@/components/admin/MongoSystemStatus";
 import { requireRole } from "@/lib/auth/guards";
 
 export const metadata: Metadata = {
@@ -19,6 +20,7 @@ export default async function AdminSystemPage() {
         description="Read-only database connectivity and schema-object visibility. No schema or data changes are made here."
       />
       <AdminSystemWorkspace />
+      <MongoSystemStatus />
     </>
   );
 }

@@ -29,6 +29,7 @@ export type DeliverableRecord = {
   contentType: DeliverableContentType | null;
   dueDate: string | null;
   status: DeliverableStatus;
+  isOverdue: boolean;
   submissions: ContentSubmissionRecord[];
 };
 
@@ -58,6 +59,7 @@ type DeliveryRow = RowDataPacket & {
   content_type: DeliverableContentType | null;
   due_date: string | null;
   deliverable_status: DeliverableStatus;
+  is_overdue: number | string;
   submission_id: number | null;
   content_url: string | null;
   submitted_date: string | null;
@@ -113,6 +115,8 @@ const deliverySelect = `SELECT d.deliverable_id, d.collaboration_id, ca.campaign
        creator_user.username AS creator_username, b.brand_name,
        co.status AS collaboration_status, d.content_type,
        d.due_date, d.status AS deliverable_status,
+       (d.due_date IS NOT NULL AND d.due_date < CURRENT_DATE()
+         AND d.status = 'Pending') AS is_overdue,
        cs.submission_id, cs.content_url, cs.submitted_date,
        cs.approval_status
 FROM deliverables d
@@ -136,19 +140,7 @@ export async function listBrandDeliverables(
   return listDeliverablesForActor("Brand", brandId);
 }
 
-async function listDeliverablesForActor(
-  role: "Creator" | "Brand",
-  profileId: number,
-): Promise<DeliverableRecord[]> {
-  const ownerClause =
-    role === "Creator" ? "a.creator_id = ?" : "ca.brand_id = ?";
-  const rows = await query<DeliveryRow[]>(
-    `${deliverySelect}
-     WHERE ${ownerClause}
-     ORDER BY d.due_date IS NULL, d.due_date ASC, d.deliverable_id DESC,
-              cs.submission_id ASC`,
-    [profileId],
-  );
+function mapDeliveryRows(rows: DeliveryRow[]): DeliverableRecord[] {
   const deliverables = new Map<number, DeliverableRecord>();
 
   for (const row of rows) {
@@ -166,15 +158,13 @@ async function listDeliverablesForActor(
         contentType: row.content_type,
         dueDate: row.due_date,
         status: row.deliverable_status,
+        isOverdue: Number(row.is_overdue) === 1,
         submissions: [],
       };
       deliverables.set(row.deliverable_id, deliverable);
     }
 
-    if (
-      row.submission_id !== null &&
-      row.approval_status !== null
-    ) {
+    if (row.submission_id !== null && row.approval_status !== null) {
       deliverable.submissions.push({
         submissionId: row.submission_id,
         contentUrl: row.content_url,
@@ -187,6 +177,190 @@ async function listDeliverablesForActor(
   return Array.from(deliverables.values());
 }
 
+async function listDeliverablesForActor(
+  role: "Creator" | "Brand",
+  profileId: number,
+): Promise<DeliverableRecord[]> {
+  const ownerClause =
+    role === "Creator" ? "a.creator_id = ?" : "ca.brand_id = ?";
+  const rows = await query<DeliveryRow[]>(
+    `${deliverySelect}
+     WHERE ${ownerClause}
+     ORDER BY d.due_date IS NULL, d.due_date ASC, d.deliverable_id DESC,
+              cs.submission_id ASC`,
+    [profileId],
+  );
+
+  return mapDeliveryRows(rows);
+}
+
+export type DeliverableDueFilter = "all" | "overdue" | "upcoming";
+
+export type CreatorDeliverableFilters = {
+  q?: string;
+  status?: DeliverableStatus | "all";
+  due?: DeliverableDueFilter;
+  collaborationId?: number;
+  page: number;
+  pageSize: number;
+};
+
+type DeliverableIdRow = RowDataPacket & {
+  deliverable_id: number;
+};
+
+type DeliverableCountRow = RowDataPacket & {
+  total: number | string;
+};
+
+type DeliverableSummaryRow = RowDataPacket & {
+  status: DeliverableStatus;
+  total: number | string;
+  overdue: number | string;
+};
+
+export type CreatorDeliverablePage = {
+  deliverables: DeliverableRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  summary: {
+    pending: number;
+    completed: number;
+    overdue: number;
+  };
+};
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
+export async function listCreatorDeliverablesPage(
+  creatorId: number,
+  filters: CreatorDeliverableFilters,
+): Promise<CreatorDeliverablePage> {
+  const where = ["a.creator_id = ?"];
+  const params: Array<string | number> = [creatorId];
+
+  if (filters.status && filters.status !== "all") {
+    where.push("d.status = ?");
+    params.push(filters.status);
+  }
+
+  if (filters.collaborationId) {
+    where.push("d.collaboration_id = ?");
+    params.push(filters.collaborationId);
+  }
+
+  if (filters.due === "overdue") {
+    where.push(
+      "d.due_date IS NOT NULL AND d.due_date < CURRENT_DATE() AND d.status = 'Pending'",
+    );
+  } else if (filters.due === "upcoming") {
+    where.push("d.due_date IS NOT NULL AND d.due_date >= CURRENT_DATE()");
+  }
+
+  const search = filters.q?.trim();
+
+  if (search) {
+    const pattern = `%${escapeLike(search)}%`;
+    where.push("(ca.campaign_name LIKE ? OR b.brand_name LIKE ?)");
+    params.push(pattern, pattern);
+  }
+
+  const whereSql = `WHERE ${where.join(" AND ")}`;
+  const offset = (filters.page - 1) * filters.pageSize;
+
+  const [idRows, countRows, summaryRows] = await Promise.all([
+    query<DeliverableIdRow[]>(
+      `SELECT d.deliverable_id
+       FROM deliverables d
+       INNER JOIN collaborations co ON co.collaboration_id = d.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       INNER JOIN brands b ON b.brand_id = ca.brand_id
+       ${whereSql}
+       ORDER BY d.due_date IS NULL, d.due_date ASC, d.deliverable_id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, filters.pageSize, offset],
+    ),
+    query<DeliverableCountRow[]>(
+      `SELECT COUNT(*) AS total
+       FROM deliverables d
+       INNER JOIN collaborations co ON co.collaboration_id = d.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       INNER JOIN brands b ON b.brand_id = ca.brand_id
+       ${whereSql}`,
+      params,
+    ),
+    query<DeliverableSummaryRow[]>(
+      `SELECT d.status, COUNT(*) AS total,
+              SUM(CASE WHEN d.due_date IS NOT NULL
+                        AND d.due_date < CURRENT_DATE()
+                        AND d.status = 'Pending'
+                       THEN 1 ELSE 0 END) AS overdue
+       FROM deliverables d
+       INNER JOIN collaborations co ON co.collaboration_id = d.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       WHERE a.creator_id = ?
+       GROUP BY d.status`,
+      [creatorId],
+    ),
+  ]);
+
+  const ids = idRows.map((row) => row.deliverable_id);
+  let deliverables: DeliverableRecord[] = [];
+
+  if (ids.length > 0) {
+    const placeholders = ids.map(() => "?").join(", ");
+    const detailRows = await query<DeliveryRow[]>(
+      `${deliverySelect}
+       WHERE d.deliverable_id IN (${placeholders})
+       ORDER BY d.deliverable_id DESC, cs.submission_id ASC`,
+      ids,
+    );
+    const mapped = new Map(
+      mapDeliveryRows(detailRows).map((deliverable) => [
+        deliverable.deliverableId,
+        deliverable,
+      ]),
+    );
+    deliverables = ids
+      .map((id) => mapped.get(id))
+      .filter((deliverable): deliverable is DeliverableRecord =>
+        Boolean(deliverable),
+      );
+  }
+
+  const summary = {
+    pending: 0,
+    completed: 0,
+    overdue: 0,
+  };
+
+  for (const row of summaryRows) {
+    if (row.status === "Pending") {
+      summary.pending = Number(row.total);
+      summary.overdue = Number(row.overdue);
+    } else {
+      summary.completed = Number(row.total);
+    }
+  }
+
+  const total = Number(countRows[0]?.total ?? 0);
+
+  return {
+    deliverables,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+    summary,
+  };
+}
+
 export type DeliveryErrorCode =
   | "COLLABORATION_NOT_FOUND"
   | "DELIVERABLE_NOT_FOUND"
@@ -197,6 +371,7 @@ export type DeliveryErrorCode =
   | "SUBMISSION_ALREADY_REVIEWED"
   | "SUBMISSIONS_EXIST"
   | "DELIVERABLE_NOT_PENDING"
+  | "SUBMISSION_DEADLINE_PASSED"
   | "CONTRACT_EXISTS"
   | "CONTRACT_NOT_FOUND";
 
@@ -224,6 +399,7 @@ type LockedDeliverableRow = RowDataPacket & {
   brand_id: number;
   collaboration_status: "Active" | "Completed";
   status: DeliverableStatus;
+  deadline_passed: number | string;
 };
 
 type SubmissionReferenceRow = RowDataPacket & {
@@ -276,7 +452,9 @@ async function getLockedDeliverable(
 ): Promise<LockedDeliverableRow | undefined> {
   const [rows] = await connection.execute<LockedDeliverableRow[]>(
     `SELECT d.deliverable_id, d.collaboration_id, a.creator_id, ca.brand_id,
-            co.status AS collaboration_status, d.status
+            co.status AS collaboration_status, d.status,
+            (d.due_date IS NOT NULL AND d.due_date < CURRENT_DATE())
+              AS deadline_passed
      FROM deliverables d
      INNER JOIN collaborations co ON co.collaboration_id = d.collaboration_id
      INNER JOIN applications a ON a.application_id = co.application_id
@@ -506,6 +684,12 @@ export async function submitDeliverable(
       throw new DeliveryError(
         "DELIVERABLE_COMPLETED",
         "This deliverable has already been completed.",
+      );
+    }
+    if (Number(deliverable.deadline_passed) === 1) {
+      throw new DeliveryError(
+        "SUBMISSION_DEADLINE_PASSED",
+        "The due date for this deliverable has passed. Contact the brand to update the deadline.",
       );
     }
 

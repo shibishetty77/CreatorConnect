@@ -25,6 +25,7 @@ export type PaymentRecord = {
   agreedAmount: string;
   amount: string;
   paymentDate: string | null;
+  transactionReference: string | null;
   status: PaymentStatus;
   collaborationStatus: "Active" | "Completed";
 };
@@ -57,6 +58,7 @@ type PaymentRow = RowDataPacket & {
   agreed_amount: string | number;
   amount: string | number;
   payment_date: string | null;
+  transaction_reference: string | null;
   payment_status: PaymentStatus;
   collaboration_status: "Active" | "Completed";
 };
@@ -135,6 +137,7 @@ function mapPayment(row: PaymentRow): PaymentRecord {
     agreedAmount: String(row.agreed_amount),
     amount: String(row.amount),
     paymentDate: row.payment_date,
+    transactionReference: row.transaction_reference,
     status: row.payment_status,
     collaborationStatus: row.collaboration_status,
   };
@@ -165,7 +168,8 @@ const paymentSelect = `SELECT p.payment_id, co.collaboration_id,
        ca.campaign_name, cr.first_name AS creator_first_name,
        cr.last_name AS creator_last_name, creator_user.username AS creator_username,
        b.brand_name, co.agreed_amount, p.amount,
-       p.payment_date, p.status AS payment_status, co.status AS collaboration_status
+       p.payment_date, p.transaction_reference,
+       p.status AS payment_status, co.status AS collaboration_status
 FROM payments p
 INNER JOIN collaborations co ON co.collaboration_id = p.collaboration_id
 INNER JOIN applications a ON a.application_id = co.application_id
@@ -191,6 +195,132 @@ export async function listPaymentsForRole(
     params,
   );
   return rows.map(mapPayment);
+}
+
+export type CreatorPaymentFilters = {
+  q?: string;
+  status?: PaymentStatus | "all";
+  page: number;
+  pageSize: number;
+};
+
+type PaymentCountRow = RowDataPacket & {
+  total: number | string;
+};
+
+type PaymentSummaryRow = RowDataPacket & {
+  status: PaymentStatus;
+  total: number | string;
+  amount_total: string | number;
+};
+
+export type CreatorPaymentPage = {
+  payments: PaymentRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  summary: {
+    pendingCount: number;
+    paidCount: number;
+    pendingAmount: string;
+    paidAmount: string;
+    totalAmount: string;
+  };
+};
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
+export async function listCreatorPaymentsPage(
+  creatorId: number,
+  filters: CreatorPaymentFilters,
+): Promise<CreatorPaymentPage> {
+  const where = ["cr.creator_id = ?"];
+  const params: Array<string | number> = [creatorId];
+
+  if (filters.status && filters.status !== "all") {
+    where.push("p.status = ?");
+    params.push(filters.status);
+  }
+
+  const search = filters.q?.trim();
+
+  if (search) {
+    const pattern = `%${escapeLike(search)}%`;
+    where.push("(ca.campaign_name LIKE ? OR b.brand_name LIKE ?)");
+    params.push(pattern, pattern);
+  }
+
+  const whereSql = `WHERE ${where.join(" AND ")}`;
+  const offset = (filters.page - 1) * filters.pageSize;
+
+  const [rows, countRows, summaryRows] = await Promise.all([
+    query<PaymentRow[]>(
+      `${paymentSelect}
+       ${whereSql}
+       ORDER BY p.payment_date IS NULL, p.payment_date DESC,
+                p.payment_id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, filters.pageSize, offset],
+    ),
+    query<PaymentCountRow[]>(
+      `SELECT COUNT(*) AS total
+       FROM payments p
+       INNER JOIN collaborations co ON co.collaboration_id = p.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       INNER JOIN creators cr ON cr.creator_id = a.creator_id
+       INNER JOIN brands b ON b.brand_id = ca.brand_id
+       ${whereSql}`,
+      params,
+    ),
+    query<PaymentSummaryRow[]>(
+      `SELECT p.status, COUNT(*) AS total,
+              COALESCE(SUM(p.amount), 0) AS amount_total
+       FROM payments p
+       INNER JOIN collaborations co ON co.collaboration_id = p.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       WHERE a.creator_id = ?
+       GROUP BY p.status`,
+      [creatorId],
+    ),
+  ]);
+
+  const summary = {
+    pendingCount: 0,
+    paidCount: 0,
+    pendingAmount: "0",
+    paidAmount: "0",
+    totalAmount: "0",
+  };
+
+  for (const row of summaryRows) {
+    if (row.status === "Pending") {
+      summary.pendingCount = Number(row.total);
+      summary.pendingAmount = String(row.amount_total);
+    } else {
+      summary.paidCount = Number(row.total);
+      summary.paidAmount = String(row.amount_total);
+    }
+  }
+
+  summary.totalAmount = addDecimalStrings(
+    summary.pendingAmount,
+    summary.paidAmount,
+  );
+
+  const total = Number(countRows[0]?.total ?? 0);
+
+  return {
+    payments: rows.map(mapPayment),
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+    summary,
+  };
 }
 
 export async function listPaymentsForParty(input: {
@@ -240,6 +370,14 @@ function canAccess(
 function decimalToMinorUnits(value: string | number): bigint {
   const [whole, fraction = ""] = String(value).split(".");
   return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0").slice(0, 2));
+}
+
+function addDecimalStrings(left: string, right: string): string {
+  const total = decimalToMinorUnits(left) + decimalToMinorUnits(right);
+  const whole = total / 100n;
+  const fraction = (total % 100n).toString().padStart(2, "0");
+
+  return `${whole}.${fraction}`;
 }
 
 function isDuplicateKey(error: unknown): boolean {

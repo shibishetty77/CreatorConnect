@@ -1,11 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { ContractPanel } from "@/components/delivery/ContractPanel";
+import { CollaborationMessages } from "@/components/collaborations/CollaborationMessages";
 import { FinancePanels } from "@/components/finance/FinancePanels";
-import { formatDate } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDate,
+  formatNumber,
+} from "@/lib/format";
 import type { CollaborationRecord } from "@/lib/repositories/collaborations";
 
 type CollaborationDetailsProps = {
@@ -91,7 +97,22 @@ export function CollaborationDetails({
           </div>
           <div>
             <dt>Agreed amount</dt>
-            <dd>INR {collaboration.agreedAmount}</dd>
+            <dd>{formatCurrency(collaboration.agreedAmount)}</dd>
+          </div>
+          <div>
+            <dt>Deliverables completed</dt>
+            <dd>
+              {formatNumber(collaboration.completedDeliverableCount)} of{" "}
+              {formatNumber(collaboration.deliverableCount)}
+            </dd>
+          </div>
+          <div>
+            <dt>Next pending deadline</dt>
+            <dd>
+              {collaboration.nextDueDate
+                ? formatDate(collaboration.nextDueDate)
+                : "None pending"}
+            </dd>
           </div>
           <div>
             <dt>Start date</dt>
@@ -102,6 +123,20 @@ export function CollaborationDetails({
             <dd>{formatDate(collaboration.endDate)}</dd>
           </div>
         </dl>
+        <div className="page-actions">
+          <Link
+            className="btn btn-secondary"
+            href={canEdit ? "/brand/deliverables" : "/creator/deliverables"}
+          >
+            Open deliverables
+          </Link>
+          <Link
+            className="btn btn-secondary"
+            href={canEdit ? "/brand/collaborations" : "/creator/collaborations"}
+          >
+            All collaborations
+          </Link>
+        </div>
       </section>
 
       {canEdit ? (
@@ -167,6 +202,10 @@ export function CollaborationDetails({
       <ContractPanel
         collaboration={collaboration}
         role={canEdit ? "brand" : "creator"}
+      />
+      <CollaborationMessages
+        collaborationId={collaboration.collaborationId}
+        role={canEdit ? "Brand" : "Creator"}
       />
       <FinancePanels
         collaboration={collaboration}

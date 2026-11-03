@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
 import type { CollaborationRecord } from "@/lib/repositories/collaborations";
 import type {
   DeliverableContentType,
@@ -17,6 +17,14 @@ type WorkspaceResponse = {
   data?: {
     deliverables: DeliverableRecord[];
     collaborations?: CollaborationRecord[];
+    total?: number;
+    page?: number;
+    totalPages?: number;
+    summary?: {
+      pending: number;
+      completed: number;
+      overdue: number;
+    };
   };
   error?: { message: string };
 };
@@ -33,6 +41,20 @@ const contentTypes: DeliverableContentType[] = [
   "Video",
 ];
 
+type FilterState = {
+  q: string;
+  status: string;
+  due: string;
+  pageSize: number;
+};
+
+const defaultFilters: FilterState = {
+  q: "",
+  status: "all",
+  due: "all",
+  pageSize: 8,
+};
+
 function isHttpUrl(value: string | null): value is string {
   if (!value) return false;
   try {
@@ -48,6 +70,15 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
   const [collaborations, setCollaborations] = useState<CollaborationRecord[]>(
     [],
   );
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [summary, setSummary] = useState({
+    pending: 0,
+    completed: 0,
+    overdue: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
@@ -62,10 +93,26 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
     async function load() {
       setLoading(true);
       setLoadError(null);
+
+      const params = new URLSearchParams();
+      const isCreator = role === "creator";
+
+      if (isCreator) {
+        params.set("status", filters.status);
+        params.set("due", filters.due);
+        params.set("page", String(page));
+        params.set("pageSize", String(filters.pageSize));
+
+        if (filters.q) {
+          params.set("q", filters.q);
+        }
+      }
+
       try {
-        const response = await fetch(`/api/${role}/deliverables`, {
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          `/api/${role}/deliverables${isCreator ? `?${params}` : ""}`,
+          { signal: controller.signal },
+        );
         const payload = (await response.json().catch(() => null)) as
           | WorkspaceResponse
           | null;
@@ -76,6 +123,19 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
         }
         setDeliverables(payload.data.deliverables);
         setCollaborations(payload.data.collaborations ?? []);
+        setTotal(payload.data.total ?? payload.data.deliverables.length);
+        setTotalPages(payload.data.totalPages ?? 1);
+        setSummary(
+          payload.data.summary ?? {
+            pending: payload.data.deliverables.filter(
+              (deliverable) => deliverable.status === "Pending",
+            ).length,
+            completed: payload.data.deliverables.filter(
+              (deliverable) => deliverable.status === "Completed",
+            ).length,
+            overdue: payload.data.deliverables.filter((deliverable) => deliverable.isOverdue).length,
+          },
+        );
       } catch (error) {
         if (!controller.signal.aborted) {
           setLoadError(
@@ -93,7 +153,7 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
 
     void load();
     return () => controller.abort();
-  }, [retry, role]);
+  }, [filters, page, retry, role]);
 
   async function mutate(
     key: string,
@@ -198,10 +258,26 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
     );
   }
 
-  const pendingCount = deliverables.filter(
-    (deliverable) => deliverable.status === "Pending",
-  ).length;
-  const completedCount = deliverables.length - pendingCount;
+  function handleFilterSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    setFilters({
+      q: String(formData.get("q") ?? "").trim(),
+      status: String(formData.get("status") ?? "all"),
+      due: String(formData.get("due") ?? "all"),
+      pageSize: Number(formData.get("pageSize") ?? 8),
+    });
+    setPage(1);
+  }
+
+  function resetFilters() {
+    setFilters(defaultFilters);
+    setPage(1);
+  }
+
+  const pendingCount = summary.pending;
+  const completedCount = summary.completed;
+  const overdueCount = summary.overdue;
 
   if (loading) {
     return <section className="panel" role="status">Loading delivery workspace…</section>;
@@ -229,13 +305,71 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
 
   return (
     <div className="form-stack">
+      {role === "creator" ? (
+        <form className="panel admin-filter-form" onSubmit={handleFilterSubmit}>
+          <label className="field">
+            <span className="field-label">Search</span>
+            <input
+              name="q"
+              maxLength={120}
+              defaultValue={filters.q}
+              placeholder="Campaign or brand name"
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">Status</span>
+            <select name="status" defaultValue={filters.status}>
+              <option value="all">All statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Deadline</span>
+            <select name="due" defaultValue={filters.due}>
+              <option value="all">All deadlines</option>
+              <option value="overdue">Overdue pending</option>
+              <option value="upcoming">Upcoming</option>
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Rows per page</span>
+            <select name="pageSize" defaultValue={String(filters.pageSize)}>
+              <option value="8">8</option>
+              <option value="16">16</option>
+              <option value="32">32</option>
+            </select>
+          </label>
+          <div className="page-actions">
+            <button className="btn btn-primary" type="submit">
+              Apply filters
+            </button>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={resetFilters}
+            >
+              Clear
+            </button>
+          </div>
+        </form>
+      ) : null}
+
       <section className="panel">
         <div className="panel-header">
           <div>
             <h2>Delivery progress</h2>
             <p>
-              {pendingCount} pending · {completedCount} completed
+              {formatNumber(pendingCount)} pending ·{" "}
+              {formatNumber(completedCount)} completed
+              {overdueCount > 0 ? ` · ${formatNumber(overdueCount)} overdue` : ""}
             </p>
+            {role === "creator" ? (
+              <p>
+                Showing {formatNumber(deliverables.length)} of{" "}
+                {formatNumber(total)} deliverables.
+              </p>
+            ) : null}
           </div>
         </div>
         {actionError ? <p className="form-error" role="alert">{actionError}</p> : null}
@@ -297,14 +431,17 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
       {deliverables.length === 0 ? (
         <section className="panel">
           <p className="empty-note">
-            {role === "creator"
-              ? "Deliverables from your active collaborations will appear here."
-              : "Your collaborations do not have any deliverables yet."}
+            {filters.q || filters.status !== "all" || filters.due !== "all"
+              ? "No deliverables match these filters."
+              : role === "creator"
+                ? "Deliverables from your active collaborations will appear here."
+                : "Your collaborations do not have any deliverables yet."}
           </p>
         </section>
       ) : (
-        <div className="panel-grid">
-          {deliverables.map((deliverable) => {
+        <>
+          <div className="panel-grid">
+            {deliverables.map((deliverable) => {
             const latestSubmission =
               deliverable.submissions[deliverable.submissions.length - 1];
             const pendingSubmission = deliverable.submissions.find(
@@ -322,7 +459,12 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
                         : `${deliverable.creatorName} (@${deliverable.creatorUsername})`}
                     </p>
                   </div>
-                  <StatusBadge status={deliverable.status} />
+                  <div className="status-stack">
+                    {deliverable.isOverdue ? (
+                      <StatusBadge status="Overdue" />
+                    ) : null}
+                    <StatusBadge status={deliverable.status} />
+                  </div>
                 </header>
                 <dl className="campaign-facts">
                   <div>
@@ -471,6 +613,11 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
                     </p>
                   ) : deliverable.collaborationStatus !== "Active" ? (
                     <p>Submissions are closed for this completed collaboration.</p>
+                  ) : deliverable.isOverdue ? (
+                    <p className="form-error" role="status">
+                      The due date has passed. Contact the brand to update the
+                      deadline before submitting.
+                    </p>
                   ) : (
                     <form
                       className="form-stack"
@@ -513,7 +660,34 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
               </article>
             );
           })}
-        </div>
+          </div>
+
+          {role === "creator" ? (
+            <nav className="pagination" aria-label="Deliverable pages">
+              <button
+                className="btn btn-secondary"
+                type="button"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+              >
+                Previous
+              </button>
+              <span>
+                Page {formatNumber(page)} of {formatNumber(totalPages)}
+              </span>
+              <button
+                className="btn btn-secondary"
+                type="button"
+                disabled={page >= totalPages || loading}
+                onClick={() =>
+                  setPage((current) => Math.min(totalPages, current + 1))
+                }
+              >
+                Next
+              </button>
+            </nav>
+          ) : null}
+        </>
       )}
     </div>
   );

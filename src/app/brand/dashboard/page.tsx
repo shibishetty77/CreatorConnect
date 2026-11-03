@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { PlatformActivityPanel } from "@/components/dashboard/PlatformActivityPanel";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
@@ -179,6 +180,8 @@ export default async function BrandDashboardPage() {
           </dl>
         </section>
       </div>
+
+      <PlatformActivityPanel />
 
       <div className="panel-grid">
         <section className="panel" aria-labelledby="delivery-heading">

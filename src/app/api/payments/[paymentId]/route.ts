@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api/response";
 import { financeApiError } from "@/lib/api/finance";
 import { missingProfileError, requireApiRole } from "@/lib/auth/api";
 import { mutationGuard } from "@/lib/auth/csrf";
+import { recordPaymentPaid } from "@/lib/platform-events";
 import { updatePayment } from "@/lib/repositories/finance";
 import {
   financeIdParamSchema,
@@ -58,6 +59,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       brandId: actor.user.brandProfile?.brandId ?? null,
       updates: parsedBody.data,
     });
+    if (result.status === "Paid" && parsedBody.data.status === "Paid") {
+      await recordPaymentPaid({
+        paymentId: result.paymentId,
+        actorId: actor.user.userId,
+        actorRole: actor.user.role,
+      });
+    }
     return apiSuccess(result);
   } catch (error) {
     return financeApiError(error, "Payment update failed");

@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api/response";
 import { deliveryApiError } from "@/lib/api/delivery";
 import { missingProfileError, requireApiRole } from "@/lib/auth/api";
 import { mutationGuard } from "@/lib/auth/csrf";
+import { recordRevisionRequested } from "@/lib/platform-events";
 import { reviewSubmission } from "@/lib/repositories/delivery";
 import {
   deliveryIdParamSchema,
@@ -52,6 +53,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
       parsedId.data,
       parsedBody.data.approvalStatus,
     );
+    if (parsedBody.data.approvalStatus === "Rejected") {
+      await recordRevisionRequested({
+        submissionId: parsedId.data,
+        brandUserId: actor.user.userId,
+      });
+    }
     return apiSuccess({
       submissionId: parsedId.data,
       approvalStatus: parsedBody.data.approvalStatus,

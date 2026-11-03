@@ -73,6 +73,35 @@ export const loginSchema = z.object({
   next: z.string().trim().max(300).optional(),
 });
 
+export const passwordChangeSchema = z
+  .object({
+    currentPassword: z
+      .string()
+      .min(1, "Enter your current password.")
+      .max(72, "Password is too long."),
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .superRefine((value, context) => {
+    if (value.newPassword !== value.confirmPassword) {
+      context.addIssue({
+        code: "custom",
+        path: ["confirmPassword"],
+        message: "Passwords do not match.",
+      });
+    }
+
+    if (value.newPassword === value.currentPassword) {
+      context.addIssue({
+        code: "custom",
+        path: ["newPassword"],
+        message: "Choose a password different from your current password.",
+      });
+    }
+  });
+
+export type PasswordChangeInput = z.infer<typeof passwordChangeSchema>;
+
 export const adminBootstrapSchema = z.object({
   username: usernameSchema,
   email: emailSchema,

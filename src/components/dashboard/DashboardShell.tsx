@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { NavIcon } from "@/components/dashboard/NavIcon";
+import { NotificationBell } from "@/components/dashboard/NotificationBell";
 import type { Role } from "@/lib/auth/constants";
 import { initials } from "@/lib/format";
 import {
@@ -15,6 +16,7 @@ import {
 
 type DashboardShellProps = {
   role: Role;
+  userId: number;
   name: string;
   email: string;
   navItems: NavItem[];
@@ -29,6 +31,7 @@ const workspaceLabels: Record<Role, string> = {
 
 export function DashboardShell({
   role,
+  userId,
   name,
   email,
   navItems,
@@ -169,6 +172,8 @@ export function DashboardShell({
             <span>{workspaceLabels[role]}</span>
             <small>CreatorConnect</small>
           </div>
+
+          <NotificationBell key={userId} role={role} />
 
           <div className="topbar-user">
             <span className="topbar-avatar" aria-hidden="true">

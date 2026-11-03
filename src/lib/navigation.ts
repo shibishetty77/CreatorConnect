@@ -77,6 +77,7 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/brands", label: "Brands", icon: "brands" },
   { href: "/admin/campaigns", label: "Campaigns", icon: "campaigns" },
   { href: "/admin/reports", label: "Reports", icon: "overview" },
+  { href: "/admin/activity", label: "Platform activity", icon: "applications" },
   { href: "/admin/categories", label: "Categories", icon: "settings" },
   {
     href: "/admin/collaborations",

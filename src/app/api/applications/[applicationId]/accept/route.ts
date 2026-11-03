@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { missingProfileError, requireApiRole } from "@/lib/auth/api";
 import { mutationGuard } from "@/lib/auth/csrf";
+import { recordApplicationAccepted } from "@/lib/platform-events";
 import {
   acceptBrandApplication,
   ApplicationDecisionError,
@@ -73,6 +74,11 @@ export async function POST(
       parsedId.data,
       parsedBody.data,
     );
+    await recordApplicationAccepted({
+      applicationId: result.applicationId,
+      collaborationId: result.collaborationId,
+      brandUserId: actor.user.userId,
+    });
 
     return apiSuccess(result, 201);
   } catch (error) {

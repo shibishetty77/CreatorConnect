@@ -10,7 +10,7 @@ import mysql, {
 } from "mysql2/promise";
 
 const LIVE_TABLE_COUNT = 15;
-const LIVE_RECORD_COUNT = 259;
+const LIVE_RECORD_COUNT = 548;
 
 const CREATOR = { userId: 2, username: "ananya.rao", role: "Creator" as const };
 const OTHER_CREATOR = {
@@ -222,7 +222,7 @@ async function main(): Promise<void> {
     assert.equal(
       liveTotal,
       LIVE_RECORD_COUNT,
-      "The seeded database no longer contains the expected 259 records.",
+      "The seeded database no longer contains the expected 548 records.",
     );
 
     await adminConnection.query(
@@ -348,7 +348,10 @@ async function main(): Promise<void> {
     const adminCookie = `cc_session=${await signSession(ADMIN, authSecret)}`;
 
     const [openCampaignRows] = await testConnection.query<RowDataPacket[]>(
-      "SELECT COUNT(*) AS count FROM campaigns WHERE status = 'Open'",
+      `SELECT COUNT(*) AS count FROM campaigns
+       WHERE status = 'Open'
+         AND start_date <= CURRENT_DATE()
+         AND end_date >= CURRENT_DATE()`,
     );
     const [creatorAppRows] = await testConnection.query<RowDataPacket[]>(
       "SELECT status, COUNT(*) AS count FROM applications WHERE creator_id = 1 GROUP BY status",
@@ -506,7 +509,7 @@ async function main(): Promise<void> {
       assertMetric(
         html,
         "creator.payments.paid",
-        Number(creatorPaidRows[0].total),
+        String(creatorPaidRows[0].total),
       );
       assert.match(html, /Social reach/);
       assert.match(html, /Payment summary/);
@@ -831,7 +834,7 @@ async function main(): Promise<void> {
       assertMetric(
         html,
         "brand.campaigns.budget",
-        Number(brandBudgetRows[0].total),
+        String(brandBudgetRows[0].total),
       );
       assert.match(html, /Payment summary/);
       assert.match(html, /Recent activity/);
@@ -1006,7 +1009,7 @@ async function main(): Promise<void> {
       );
     });
 
-    await test("live database still contains exactly 259 records after the run", async () => {
+    await test("live database still contains exactly 548 records after the run", async () => {
       let total = 0;
 
       for (const table of BASE_TABLES) {

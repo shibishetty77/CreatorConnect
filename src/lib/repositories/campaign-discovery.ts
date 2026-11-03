@@ -8,6 +8,8 @@ import { pool, query } from "@/lib/db";
 import { formatNumber, formatPercent } from "@/lib/format";
 import type { ApplicationStatus } from "@/lib/repositories/applications";
 
+export type CampaignStatus = "Open" | "Ongoing" | "Completed";
+
 type CampaignRow = RowDataPacket & {
   campaign_id: number;
   campaign_name: string;
@@ -17,10 +19,25 @@ type CampaignRow = RowDataPacket & {
   start_date: string | null;
   end_date: string | null;
   creator_limit: number | string;
+  status: CampaignStatus;
+  window_open: number | string;
   brand_name: string;
   category_name: string | null;
   application_status: ApplicationStatus | null;
   accepted_count: number | string;
+};
+
+type CampaignCountRow = RowDataPacket & {
+  total: number | string;
+};
+
+type CampaignCategoryRow = RowDataPacket & {
+  category_id: number;
+  category_name: string;
+};
+
+type CampaignPlatformRow = RowDataPacket & {
+  platform: string;
 };
 
 type RequirementRow = RowDataPacket & {
@@ -64,6 +81,8 @@ export type CreatorCampaignRecord = {
   minFollowers: number;
   startDate: string | null;
   endDate: string | null;
+  status: CampaignStatus;
+  applicationWindowOpen: boolean;
   creatorLimit: number;
   acceptedApplications: number;
   remainingSlots: number;
@@ -73,6 +92,31 @@ export type CreatorCampaignRecord = {
   requirements: CampaignRequirementRecord[];
   eligible: boolean;
   eligibilityReasons: string[];
+};
+
+export type CreatorCampaignFilters = {
+  q?: string;
+  categoryId?: number;
+  platform?: string;
+  minBudget?: number;
+  maxBudget?: number;
+  status?: CampaignStatus | "all";
+  sort?: "newest" | "budget_desc" | "budget_asc";
+  page: number;
+  pageSize: number;
+};
+
+export type CreatorCampaignPage = {
+  campaigns: CreatorCampaignRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type CampaignFilterOptions = {
+  categories: Array<{ categoryId: number; categoryName: string }>;
+  platforms: string[];
 };
 
 function mapRequirement(row: RequirementRow): CampaignRequirementRecord {
@@ -175,6 +219,8 @@ function mapCampaign(
     minFollowers,
     startDate: row.start_date,
     endDate: row.end_date,
+    status: row.status,
+    applicationWindowOpen: Number(row.window_open) === 1,
     creatorLimit,
     acceptedApplications,
     remainingSlots: Math.max(0, creatorLimit - acceptedApplications),
@@ -187,13 +233,119 @@ function mapCampaign(
   };
 }
 
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
+function mapSocialAccounts(
+  rows: SocialAccountRow[],
+): CreatorSocialAccountEligibility[] {
+  return rows.map((row) => ({
+    platform: row.platform,
+    followers: Number(row.followers),
+    engagementRate:
+      row.engagement_rate === null ? null : Number(row.engagement_rate),
+  }));
+}
+
+async function listRequirementsForCampaigns(
+  campaignIds: number[],
+): Promise<Map<number, CampaignRequirementRecord[]>> {
+  const requirementsByCampaign = new Map<
+    number,
+    CampaignRequirementRecord[]
+  >();
+
+  if (campaignIds.length === 0) {
+    return requirementsByCampaign;
+  }
+
+  const placeholders = campaignIds.map(() => "?").join(", ");
+  const requirementRows = await query<RequirementRow[]>(
+    `SELECT campaign_id, requirement_id, platform, required_niche,
+            min_engagement_rate
+     FROM campaign_requirements
+     WHERE campaign_id IN (${placeholders})
+     ORDER BY campaign_id ASC, requirement_id ASC`,
+    campaignIds,
+  );
+
+  for (const row of requirementRows) {
+    const requirements = requirementsByCampaign.get(row.campaign_id) ?? [];
+    requirements.push(mapRequirement(row));
+    requirementsByCampaign.set(row.campaign_id, requirements);
+  }
+
+  return requirementsByCampaign;
+}
+
+const campaignOrderBy: Record<
+  NonNullable<CreatorCampaignFilters["sort"]>,
+  string
+> = {
+  newest: "c.start_date DESC, c.campaign_id DESC",
+  budget_desc: "c.budget DESC, c.campaign_id DESC",
+  budget_asc: "c.budget ASC, c.campaign_id DESC",
+};
+
 export async function listCreatorCampaigns(
   creatorId: number,
-): Promise<CreatorCampaignRecord[]> {
-  const [campaignRows, requirementRows, socialAccountRows] = await Promise.all([
+  filters: CreatorCampaignFilters,
+): Promise<CreatorCampaignPage> {
+  const where: string[] = [];
+  const whereParams: Array<string | number> = [];
+
+  if (filters.status && filters.status !== "all") {
+    where.push("c.status = ?");
+    whereParams.push(filters.status);
+  }
+
+  const search = filters.q?.trim();
+
+  if (search) {
+    const pattern = `%${escapeLike(search)}%`;
+    where.push("(c.campaign_name LIKE ? OR c.description LIKE ?)");
+    whereParams.push(pattern, pattern);
+  }
+
+  if (filters.categoryId !== undefined) {
+    where.push("c.category_id = ?");
+    whereParams.push(filters.categoryId);
+  }
+
+  if (filters.platform) {
+    where.push(
+      `EXISTS (
+         SELECT 1
+         FROM campaign_requirements requirement_filter
+         WHERE requirement_filter.campaign_id = c.campaign_id
+           AND requirement_filter.platform = ?
+       )`,
+    );
+    whereParams.push(filters.platform);
+  }
+
+  if (filters.minBudget !== undefined) {
+    where.push("c.budget >= ?");
+    whereParams.push(filters.minBudget);
+  }
+
+  if (filters.maxBudget !== undefined) {
+    where.push("c.budget <= ?");
+    whereParams.push(filters.maxBudget);
+  }
+
+  const whereSql = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+  const orderBy = campaignOrderBy[filters.sort ?? "newest"];
+  const offset = (filters.page - 1) * filters.pageSize;
+
+  const [campaignRows, countRows, socialAccountRows] = await Promise.all([
     query<CampaignRow[]>(
       `SELECT c.campaign_id, c.campaign_name, c.description, c.budget,
               c.min_followers, c.start_date, c.end_date, c.creator_limit,
+              c.status,
+              (c.start_date <= CURRENT_DATE()
+               AND c.end_date >= CURRENT_DATE()) AS window_open,
               b.brand_name, cc.category_name, a.status AS application_status,
               (SELECT COUNT(*)
                FROM applications accepted
@@ -204,21 +356,16 @@ export async function listCreatorCampaigns(
        LEFT JOIN campaign_categories cc ON cc.category_id = c.category_id
        LEFT JOIN applications a
          ON a.campaign_id = c.campaign_id AND a.creator_id = ?
-       WHERE c.status = 'Open'
-         AND c.start_date <= CURRENT_DATE()
-         AND c.end_date >= CURRENT_DATE()
-       ORDER BY c.start_date ASC, c.campaign_id ASC`,
-      [creatorId],
+       ${whereSql}
+       ORDER BY ${orderBy}
+       LIMIT ? OFFSET ?`,
+      [creatorId, ...whereParams, filters.pageSize, offset],
     ),
-    query<RequirementRow[]>(
-      `SELECT r.campaign_id, r.requirement_id, r.platform, r.required_niche,
-              r.min_engagement_rate
-       FROM campaign_requirements r
-       INNER JOIN campaigns c ON c.campaign_id = r.campaign_id
-       WHERE c.status = 'Open'
-         AND c.start_date <= CURRENT_DATE()
-         AND c.end_date >= CURRENT_DATE()
-       ORDER BY r.campaign_id ASC, r.requirement_id ASC`,
+    query<CampaignCountRow[]>(
+      `SELECT COUNT(*) AS total
+       FROM campaigns c
+       ${whereSql}`,
+      whereParams,
     ),
     query<SocialAccountRow[]>(
       `SELECT platform, followers, engagement_rate
@@ -228,29 +375,103 @@ export async function listCreatorCampaigns(
     ),
   ]);
 
-  const requirementsByCampaign = new Map<number, CampaignRequirementRecord[]>();
+  const requirementRowsByCampaign = await listRequirementsForCampaigns(
+    campaignRows.map((row) => row.campaign_id),
+  );
+  const socialAccounts = mapSocialAccounts(socialAccountRows);
+  const total = Number(countRows[0]?.total ?? 0);
 
-  for (const row of requirementRows) {
-    const requirements = requirementsByCampaign.get(row.campaign_id) ?? [];
-    requirements.push(mapRequirement(row));
-    requirementsByCampaign.set(row.campaign_id, requirements);
+  return {
+    campaigns: campaignRows.map((row) =>
+      mapCampaign(
+        row,
+        requirementRowsByCampaign.get(row.campaign_id) ?? [],
+        socialAccounts,
+      ),
+    ),
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
+}
+
+export async function getCreatorCampaignById(
+  creatorId: number,
+  campaignId: number,
+): Promise<CreatorCampaignRecord | null> {
+  const campaignRows = await query<CampaignRow[]>(
+    `SELECT c.campaign_id, c.campaign_name, c.description, c.budget,
+            c.min_followers, c.start_date, c.end_date, c.creator_limit,
+            c.status,
+            (c.start_date <= CURRENT_DATE()
+             AND c.end_date >= CURRENT_DATE()) AS window_open,
+            b.brand_name, cc.category_name, a.status AS application_status,
+            (SELECT COUNT(*)
+             FROM applications accepted
+             WHERE accepted.campaign_id = c.campaign_id
+               AND accepted.status = 'Accepted') AS accepted_count
+     FROM campaigns c
+     INNER JOIN brands b ON b.brand_id = c.brand_id
+     LEFT JOIN campaign_categories cc ON cc.category_id = c.category_id
+     LEFT JOIN applications a
+       ON a.campaign_id = c.campaign_id AND a.creator_id = ?
+     WHERE c.campaign_id = ?
+     LIMIT 1`,
+    [creatorId, campaignId],
+  );
+  const campaignRow = campaignRows[0];
+
+  if (!campaignRow) {
+    return null;
   }
 
-  const socialAccounts: CreatorSocialAccountEligibility[] =
-    socialAccountRows.map((row) => ({
-      platform: row.platform,
-      followers: Number(row.followers),
-      engagementRate:
-        row.engagement_rate === null ? null : Number(row.engagement_rate),
-    }));
-
-  return campaignRows.map((row) =>
-    mapCampaign(
-      row,
-      requirementsByCampaign.get(row.campaign_id) ?? [],
-      socialAccounts,
+  const [requirementRows, socialAccountRows] = await Promise.all([
+    query<RequirementRow[]>(
+      `SELECT campaign_id, requirement_id, platform, required_niche,
+              min_engagement_rate
+       FROM campaign_requirements
+       WHERE campaign_id = ?
+       ORDER BY requirement_id ASC`,
+      [campaignId],
     ),
+    query<SocialAccountRow[]>(
+      `SELECT platform, followers, engagement_rate
+       FROM creator_social_accounts
+       WHERE creator_id = ?`,
+      [creatorId],
+    ),
+  ]);
+
+  return mapCampaign(
+    campaignRow,
+    requirementRows.map(mapRequirement),
+    mapSocialAccounts(socialAccountRows),
   );
+}
+
+export async function getCampaignFilterOptions(): Promise<CampaignFilterOptions> {
+  const [categoryRows, platformRows] = await Promise.all([
+    query<CampaignCategoryRow[]>(
+      `SELECT category_id, category_name
+       FROM campaign_categories
+       ORDER BY category_name ASC`,
+    ),
+    query<CampaignPlatformRow[]>(
+      `SELECT DISTINCT platform
+       FROM campaign_requirements
+       WHERE platform IS NOT NULL
+       ORDER BY platform ASC`,
+    ),
+  ]);
+
+  return {
+    categories: categoryRows.map((row) => ({
+      categoryId: row.category_id,
+      categoryName: row.category_name,
+    })),
+    platforms: platformRows.map((row) => row.platform),
+  };
 }
 
 export type CampaignApplicationFailureCode =

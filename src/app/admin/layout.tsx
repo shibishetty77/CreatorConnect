@@ -18,6 +18,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <DashboardShell
       role="Admin"
+      userId={user.userId}
       name={name}
       email={user.email}
       navItems={ADMIN_NAV}

@@ -170,7 +170,7 @@ export async function markAllNotificationsRead(
   return result.modifiedCount;
 }
 
-export async function createActivity(input: ActivityInput): Promise<void> {
+export async function createActivity(input: ActivityInput): Promise<boolean> {
   const activities = await collection<ActivityDocument>("activity_logs");
   const document: OptionalUnlessRequiredId<ActivityDocument> = {
     ...input,
@@ -178,14 +178,15 @@ export async function createActivity(input: ActivityInput): Promise<void> {
     createdAt: input.createdAt ?? new Date(),
   };
   if (input.dedupeKey) {
-    await activities.updateOne(
+    const result = await activities.updateOne(
       { dedupeKey: input.dedupeKey },
       { $setOnInsert: document },
       { upsert: true },
     );
-    return;
+    return result.upsertedCount === 1;
   }
   await activities.insertOne(document);
+  return true;
 }
 
 export async function listActivity(input: {
@@ -247,9 +248,9 @@ export async function addSeedMessage(input: {
   message: string;
   seedKey: string;
   createdAt: Date;
-}): Promise<void> {
+}): Promise<boolean> {
   const messages = await collection<MessageDocument>("collaboration_messages");
-  await messages.updateOne(
+  const result = await messages.updateOne(
     { seedKey: input.seedKey },
     {
       $setOnInsert: {
@@ -260,22 +261,24 @@ export async function addSeedMessage(input: {
     },
     { upsert: true },
   );
+  return result.upsertedCount === 1;
 }
 
 export async function addSeedNotification(
   input: NotificationInput & { isRead: boolean },
-): Promise<void> {
+): Promise<boolean> {
   const notifications = await collection<NotificationDocument>("notifications");
   const { isRead, ...document } = input;
-  await notifications.updateOne(
+  const result = await notifications.updateOne(
     { dedupeKey: input.dedupeKey },
     { $setOnInsert: { ...document, isRead, metadata: input.metadata ?? {} } },
     { upsert: true },
   );
+  return result.upsertedCount === 1;
 }
 
-export async function addSeedActivity(input: ActivityInput): Promise<void> {
-  await createActivity(input);
+export async function addSeedActivity(input: ActivityInput): Promise<boolean> {
+  return createActivity(input);
 }
 
 export function parseObjectId(value: string): ObjectId | null {

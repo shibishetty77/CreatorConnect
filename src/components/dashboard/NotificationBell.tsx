@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Role } from "@/lib/auth/constants";
 import type { NotificationRecord } from "@/lib/repositories/mongo-platform";
@@ -47,6 +47,8 @@ export function NotificationBell({ role }: { role: Role }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);
@@ -75,6 +77,34 @@ export function NotificationBell({ role }: { role: Role }) {
     const interval = window.setInterval(() => void loadNotifications(), 60_000);
     return () => window.clearInterval(interval);
   }, [loadNotifications]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Node && menuRef.current?.contains(target)) {
+        return;
+      }
+      setOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   async function markAllRead() {
     setSaving(true);
@@ -119,9 +149,10 @@ export function NotificationBell({ role }: { role: Role }) {
   }
 
   return (
-    <div className="notification-menu">
+    <div className="notification-menu" ref={menuRef}>
       <button
         className="notification-trigger"
+        ref={triggerRef}
         type="button"
         aria-label={
           unreadCount === null
@@ -129,6 +160,7 @@ export function NotificationBell({ role }: { role: Role }) {
             : `Notifications, ${unreadCount} unread`
         }
         aria-expanded={open}
+        aria-haspopup="dialog"
         aria-controls="notification-popover"
         onClick={() => setOpen((value) => !value)}
       >
@@ -155,12 +187,15 @@ export function NotificationBell({ role }: { role: Role }) {
         <section
           className="notification-popover"
           id="notification-popover"
+          role="dialog"
           aria-label="Notifications"
         >
           <header className="notification-heading">
-            <div>
+            <div className="notification-heading-title">
               <h2>Notifications</h2>
-              <span>{unreadCount ?? 0} unread</span>
+              <span className="notification-unread-badge">
+                {unreadCount ?? 0} unread
+              </span>
             </div>
             <button
               className="notification-mark-all"
@@ -179,9 +214,28 @@ export function NotificationBell({ role }: { role: Role }) {
               </button>
             </div>
           ) : loading ? (
-            <p className="notification-state" role="status">Loading notifications…</p>
+            <p className="notification-state" role="status">
+              Loading notifications…
+            </p>
           ) : notifications.length === 0 ? (
-            <p className="notification-state">You’re all caught up.</p>
+            <div className="notification-state notification-empty">
+              <span className="notification-empty-icon" aria-hidden="true">
+                <svg
+                  fill="none"
+                  height="22"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                  viewBox="0 0 24 24"
+                  width="22"
+                >
+                  <path d="m5 13 4 4L19 7" />
+                </svg>
+              </span>
+              <strong>You’re all caught up</strong>
+              <span>New notifications will appear here.</span>
+            </div>
           ) : (
             <ul className="notification-list">
               {notifications.map((notification) => (
@@ -205,9 +259,16 @@ export function NotificationBell({ role }: { role: Role }) {
                         );
                     }}
                   >
-                    <span className="notification-item-title">{notification.title}</span>
-                    <span>{notification.message}</span>
-                    <time dateTime={notification.createdAt.toString()}>
+                    <span className="notification-item-title">
+                      {notification.title}
+                    </span>
+                    <span className="notification-item-message">
+                      {notification.message}
+                    </span>
+                    <time
+                      className="notification-item-time"
+                      dateTime={notification.createdAt.toString()}
+                    >
                       {new Date(notification.createdAt).toLocaleString()}
                     </time>
                   </Link>

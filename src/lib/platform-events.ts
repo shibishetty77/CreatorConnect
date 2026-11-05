@@ -11,7 +11,7 @@ import {
 
 async function bestEffortMongoEvent(
   label: string,
-  write: () => Promise<void>,
+  write: () => Promise<unknown>,
 ): Promise<void> {
   try {
     await write();

@@ -84,7 +84,8 @@ export function CollaborationDetails({
         <header className="panel-header">
           <div>
             <span className="page-eyebrow">{collaboration.brandName}</span>
-            <h2>{collaboration.campaignName}</h2>
+            <h2>{collaboration.title}</h2>
+            <p>{collaboration.campaignName}</p>
           </div>
           <StatusBadge status={collaboration.status} />
         </header>
@@ -122,6 +123,18 @@ export function CollaborationDetails({
             <dt>End date</dt>
             <dd>{formatDate(collaboration.endDate)}</dd>
           </div>
+          {collaboration.deliverableDescription ? (
+            <div>
+              <dt>Deliverables</dt>
+              <dd>{collaboration.deliverableDescription}</dd>
+            </div>
+          ) : null}
+          {collaboration.additionalRequirements ? (
+            <div>
+              <dt>Additional requirements</dt>
+              <dd>{collaboration.additionalRequirements}</dd>
+            </div>
+          ) : null}
         </dl>
         <div className="page-actions">
           <Link

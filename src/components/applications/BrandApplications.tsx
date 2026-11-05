@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { WorkspaceEmptyState } from "@/components/dashboard/WorkspaceEmptyState";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { BrandApplicationRecord } from "@/lib/repositories/brand-applications";
 
@@ -171,11 +172,16 @@ export function BrandApplications() {
 
   if (applications.length === 0) {
     return (
-      <section className="panel">
-        <p className="empty-note">
-          No creators have applied to your campaigns yet.
-        </p>
-      </section>
+      <WorkspaceEmptyState
+        title="No creator applications yet"
+        description="Applications from creators to your published campaigns will appear here."
+        detail="Keep an Open campaign within its application dates to receive interest."
+        action={
+          <Link className="btn btn-secondary" href="/brand/campaigns">
+            View campaigns
+          </Link>
+        }
+      />
     );
   }
 

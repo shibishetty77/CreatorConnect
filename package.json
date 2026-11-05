@@ -11,7 +11,10 @@
     "auth:create-admin": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/create-admin.ts",
     "test:auth": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/test-auth.ts",
     "test:dashboards": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/test-dashboards.ts",
+    "test:collaborations": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/test-collaborations.ts",
+    "db:migrate-collaborations": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate-collaboration-requests.ts",
     "db:seed-demo": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-demo-data.ts",
+    "db:seed-flipkart-demo": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-flipkart-demo.ts",
     "mongo:test": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/test-mongodb-connection.ts",
     "mongo:seed-demo": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-mongodb-demo.ts",
     "test:mongodb": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/test-mongodb.ts"

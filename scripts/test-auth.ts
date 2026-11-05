@@ -320,11 +320,20 @@ async function main(): Promise<void> {
       CREATE TABLE collaborations (
         collaboration_id INT NOT NULL AUTO_INCREMENT,
         application_id INT NOT NULL,
+        title VARCHAR(150) DEFAULT NULL,
+        description TEXT,
+        deliverable_description TEXT,
+        additional_requirements TEXT,
+        requested_by ENUM('Brand','Creator') DEFAULT NULL,
         agreed_amount DECIMAL(12,2) NOT NULL,
         start_date DATE NOT NULL,
         end_date DATE NOT NULL,
-        status ENUM('Active','Completed') DEFAULT 'Active',
-        PRIMARY KEY (collaboration_id)
+        status ENUM('Pending','Active','Completed','Rejected') DEFAULT 'Active',
+        decided_at TIMESTAMP NULL DEFAULT NULL,
+        created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (collaboration_id),
+        UNIQUE KEY uq_collaboration_application (application_id),
+        KEY idx_collaboration_request_status (requested_by, status)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
     `);
 

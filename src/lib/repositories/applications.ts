@@ -109,7 +109,10 @@ export async function listCreatorApplications(
   creatorId: number,
   filters: CreatorApplicationFilters,
 ): Promise<CreatorApplicationPage> {
-  const where = ["a.creator_id = ?"];
+  const where = [
+    "a.creator_id = ?",
+    "NOT EXISTS (SELECT 1 FROM collaborations request_collab WHERE request_collab.application_id = a.application_id AND request_collab.requested_by IS NOT NULL)",
+  ];
   const params: Array<string | number> = [creatorId];
 
   if (filters.status && filters.status !== "all") {
@@ -148,6 +151,7 @@ export async function listCreatorApplications(
       `SELECT a.status, COUNT(*) AS total
        FROM applications a
        WHERE a.creator_id = ?
+         AND NOT EXISTS (SELECT 1 FROM collaborations request_collab WHERE request_collab.application_id = a.application_id AND request_collab.requested_by IS NOT NULL)
        GROUP BY a.status`,
       [creatorId],
     ),
@@ -182,6 +186,7 @@ export async function getCreatorApplicationById(
   const rows = await query<CreatorApplicationRow[]>(
     `${applicationSelect}
      WHERE a.application_id = ? AND a.creator_id = ?
+       AND NOT EXISTS (SELECT 1 FROM collaborations request_collab WHERE request_collab.application_id = a.application_id AND request_collab.requested_by IS NOT NULL)
      LIMIT 1`,
     [applicationId, creatorId],
   );
@@ -287,6 +292,7 @@ export async function getApplicationStatusCounts(
     `SELECT status, COUNT(*) AS total
      FROM applications
      WHERE creator_id = ?
+       AND NOT EXISTS (SELECT 1 FROM collaborations request_collab WHERE request_collab.application_id = applications.application_id AND request_collab.requested_by IS NOT NULL)
      GROUP BY status`,
     [creatorId],
   );

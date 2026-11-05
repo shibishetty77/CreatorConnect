@@ -61,3 +61,65 @@ export const collaborationUpdateSchema = z
 export type CollaborationUpdateInput = z.infer<
   typeof collaborationUpdateSchema
 >;
+
+export const collaborationRequestCreateSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(3, "Title must be at least 3 characters.")
+      .max(150, "Title must be at most 150 characters."),
+    description: z
+      .string()
+      .trim()
+      .max(4000, "Description must be at most 4000 characters.")
+      .nullable()
+      .optional(),
+    deliverableDescription: z
+      .string()
+      .trim()
+      .min(10, "Describe the deliverables in at least 10 characters.")
+      .max(4000, "Deliverables must be at most 4000 characters."),
+    additionalRequirements: z
+      .string()
+      .trim()
+      .max(4000, "Additional requirements must be at most 4000 characters.")
+      .nullable()
+      .optional(),
+    agreedAmount: z.coerce
+      .number()
+      .positive("Budget must be greater than zero.")
+      .max(9_999_999_999.99, "Budget is too large.")
+      .transform((value) => value.toFixed(2)),
+    startDate: z.iso.date("Enter a valid start date."),
+    endDate: z.iso.date("Enter a valid end date."),
+    campaignId: z.coerce
+      .number()
+      .int("Choose a valid campaign.")
+      .positive("Choose a valid campaign."),
+    brandId: z.coerce
+      .number()
+      .int("Choose a valid brand.")
+      .positive("Choose a valid brand.")
+      .nullable()
+      .optional(),
+    creatorId: z.coerce
+      .number()
+      .int("Choose a valid creator.")
+      .positive("Choose a valid creator.")
+      .nullable()
+      .optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.endDate < value.startDate) {
+      context.addIssue({
+        code: "custom",
+        path: ["endDate"],
+        message: "End date must be on or after the start date.",
+      });
+    }
+  });
+
+export type CollaborationRequestCreateInput = z.infer<
+  typeof collaborationRequestCreateSchema
+>;

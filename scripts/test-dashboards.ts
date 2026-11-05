@@ -10,7 +10,6 @@ import mysql, {
 } from "mysql2/promise";
 
 const LIVE_TABLE_COUNT = 15;
-const LIVE_RECORD_COUNT = 548;
 
 const CREATOR = { userId: 2, username: "ananya.rao", role: "Creator" as const };
 const OTHER_CREATOR = {
@@ -219,12 +218,6 @@ async function main(): Promise<void> {
       liveCounts.set(table, count);
     }
 
-    assert.equal(
-      liveTotal,
-      LIVE_RECORD_COUNT,
-      "The seeded database no longer contains the expected 548 records.",
-    );
-
     await adminConnection.query(
       `CREATE DATABASE \`${testDatabase}\`
        CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`,
@@ -268,7 +261,7 @@ async function main(): Promise<void> {
       copiedTotal += Number(rows[0].count);
     }
 
-    assert.equal(copiedTotal, LIVE_RECORD_COUNT);
+    assert.equal(copiedTotal, liveTotal);
 
     const appPort = await getFreePort();
     const baseUrl = `http://127.0.0.1:${appPort}`;
@@ -443,7 +436,7 @@ async function main(): Promise<void> {
         total += count;
       }
 
-      assert.equal(total, LIVE_RECORD_COUNT);
+      assert.equal(total, liveTotal);
     });
 
     await test("unauthenticated dashboard and profile requests are blocked", async () => {
@@ -840,6 +833,160 @@ async function main(): Promise<void> {
       assert.match(html, /Recent activity/);
     });
 
+    await test("brand campaign list, creation, and management remain owner-scoped", async () => {
+      const listResponse = await http("/api/brand/campaigns", {
+        cookie: brandCookie,
+      });
+      const listBody = await json(listResponse);
+      const listData = listBody.data as Record<string, unknown>;
+      const initialCampaigns = listData.campaigns as Array<
+        Record<string, unknown>
+      >;
+      const categories = listData.categories as Array<
+        Record<string, unknown>
+      >;
+
+      assert.equal(listResponse.status, 200);
+      assert.ok(Array.isArray(initialCampaigns));
+      assert.ok(Array.isArray(categories));
+      const [expectedApplicationCounts] =
+        await testConnection!.query<RowDataPacket[]>(
+          `SELECT ca.campaign_id,
+                  COUNT(CASE WHEN request_collab.collaboration_id IS NULL
+                             THEN a.application_id END) AS application_count
+           FROM campaigns ca
+           LEFT JOIN applications a ON a.campaign_id = ca.campaign_id
+           LEFT JOIN collaborations request_collab
+             ON request_collab.application_id = a.application_id
+            AND request_collab.requested_by IS NOT NULL
+           WHERE ca.brand_id = 1
+           GROUP BY ca.campaign_id`,
+        );
+      const expectedCountsByCampaign = new Map(
+        expectedApplicationCounts.map((row) => [
+          Number(row.campaign_id),
+          Number(row.application_count),
+        ]),
+      );
+      for (const campaign of initialCampaigns) {
+        assert.equal(
+          Number(campaign.applicationCount),
+          expectedCountsByCampaign.get(Number(campaign.campaignId)),
+        );
+      }
+
+      const endDate = new Date();
+      endDate.setUTCDate(endDate.getUTCDate() + 30);
+      const campaignName = `Dashboard integration ${suffix}`;
+      const createResponse = await http("/api/brand/campaigns", {
+        method: "POST",
+        cookie: brandCookie,
+        json: {
+          campaignName,
+          description: "Campaign CRUD integration test.",
+          categoryId: null,
+          budget: "15000",
+          minFollowers: "0",
+          creatorLimit: "3",
+          startDate: new Date().toISOString().slice(0, 10),
+          endDate: endDate.toISOString().slice(0, 10),
+        },
+      });
+      const createBody = await json(createResponse);
+      const createdCampaignId = Number(
+        (createBody.data as Record<string, unknown>).campaignId,
+      );
+      assert.equal(createResponse.status, 201);
+      assert.ok(Number.isInteger(createdCampaignId) && createdCampaignId > 0);
+
+      const [createdRows] = await testConnection!.query<RowDataPacket[]>(
+        `SELECT campaign_id, brand_id, campaign_name, max_creators,
+                creator_limit, status
+         FROM campaigns WHERE campaign_id = ?`,
+        [createdCampaignId],
+      );
+      assert.equal(createdRows.length, 1);
+      assert.equal(Number(createdRows[0].brand_id), 1);
+      assert.equal(createdRows[0].campaign_name, campaignName);
+      assert.equal(Number(createdRows[0].max_creators), 3);
+      assert.equal(Number(createdRows[0].creator_limit), 3);
+      assert.equal(createdRows[0].status, "Open");
+
+      const invalidResponse = await http("/api/brand/campaigns", {
+        method: "POST",
+        cookie: brandCookie,
+        json: {
+          campaignName: "Invalid range",
+          budget: "15000",
+          startDate: "2027-01-02",
+          endDate: "2027-01-01",
+        },
+      });
+      assert.equal(invalidResponse.status, 400);
+
+      const unauthorizedResponse = await http("/api/brand/campaigns", {
+        method: "POST",
+        cookie: creatorCookie,
+        json: {
+          campaignName: "Unauthorized campaign",
+          budget: "1000",
+          startDate: new Date().toISOString().slice(0, 10),
+          endDate: endDate.toISOString().slice(0, 10),
+        },
+      });
+      assert.equal(unauthorizedResponse.status, 403);
+
+      const updateResponse = await http(
+        `/api/brand/campaigns/${createdCampaignId}`,
+        {
+          method: "PATCH",
+          cookie: brandCookie,
+          json: { status: "Ongoing" },
+        },
+      );
+      assert.equal(updateResponse.status, 200);
+
+      const [updatedRows] = await testConnection!.query<RowDataPacket[]>(
+        "SELECT status FROM campaigns WHERE campaign_id = ? AND brand_id = 1",
+        [createdCampaignId],
+      );
+      assert.equal(updatedRows[0].status, "Ongoing");
+
+      const [otherBrandRows] = await testConnection!.query<RowDataPacket[]>(
+        "SELECT campaign_id FROM campaigns WHERE brand_id <> 1 LIMIT 1",
+      );
+      if (otherBrandRows[0]) {
+        const crossBrandResponse = await http(
+          `/api/brand/campaigns/${otherBrandRows[0].campaign_id}`,
+          {
+            method: "PATCH",
+            cookie: brandCookie,
+            json: { status: "Completed" },
+          },
+        );
+        assert.equal(crossBrandResponse.status, 404);
+      }
+
+      const refreshedResponse = await http("/api/brand/campaigns", {
+        cookie: brandCookie,
+      });
+      const refreshedBody = await json(refreshedResponse);
+      const refreshedCampaigns = (
+        (refreshedBody.data as Record<string, unknown>).campaigns as Array<
+          Record<string, unknown>
+        >
+      );
+      assert.ok(
+        refreshedCampaigns.some(
+          (campaign) => Number(campaign.campaignId) === createdCampaignId,
+        ),
+      );
+      await testConnection!.execute(
+        "DELETE FROM campaigns WHERE campaign_id = ? AND brand_id = 1",
+        [createdCampaignId],
+      );
+    });
+
     await test("brand profile loads and updates only the session brand", async () => {
       const pageResponse = await http("/brand/profile", {
         cookie: brandCookie,
@@ -1009,7 +1156,7 @@ async function main(): Promise<void> {
       );
     });
 
-    await test("live database still contains exactly 548 records after the run", async () => {
+    await test("live database retains its existing rows after the run", async () => {
       let total = 0;
 
       for (const table of BASE_TABLES) {
@@ -1021,7 +1168,7 @@ async function main(): Promise<void> {
         total += count;
       }
 
-      assert.equal(total, LIVE_RECORD_COUNT);
+      assert.equal(total, liveTotal);
     });
 
     console.log(

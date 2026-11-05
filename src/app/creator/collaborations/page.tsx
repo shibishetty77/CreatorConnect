@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { CollaborationList } from "@/components/collaborations/CollaborationList";
+import { CollaborationRequests } from "@/components/collaborations/CollaborationRequests";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 
 export const metadata: Metadata = {
@@ -13,9 +14,12 @@ export default function CreatorCollaborationsPage() {
       <PageHeader
         eyebrow="Active partnerships"
         title="Collaborations"
-        description="Track the brand agreements created from your accepted applications."
+        description="Review incoming brand proposals, propose new collaborations, and track accepted agreements."
       />
-      <CollaborationList role="creator" />
+      <div className="form-stack">
+        <CollaborationRequests role="creator" />
+        <CollaborationList role="creator" />
+      </div>
     </>
   );
 }

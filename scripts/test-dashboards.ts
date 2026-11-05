@@ -18,6 +18,11 @@ const OTHER_CREATOR = {
   role: "Creator" as const,
 };
 const BRAND = { userId: 10, username: "brand.novathread", role: "Brand" as const };
+const OTHER_BRAND = {
+  userId: 11,
+  username: "brand.pixelforge",
+  role: "Brand" as const,
+};
 const ADMIN = { userId: 1, username: "admin_creatorconnect", role: "Admin" as const };
 
 const BASE_TABLES = [
@@ -323,7 +328,14 @@ async function main(): Promise<void> {
     }
 
     async function json(response: Response): Promise<Record<string, unknown>> {
-      return (await response.json()) as Record<string, unknown>;
+      const body = await response.text();
+      try {
+        return JSON.parse(body) as Record<string, unknown>;
+      } catch {
+        throw new Error(
+          `Expected JSON from HTTP ${response.status}; received: ${body.slice(0, 200)}`,
+        );
+      }
     }
 
     async function test(name: string, run: () => Promise<void>): Promise<void> {
@@ -338,6 +350,10 @@ async function main(): Promise<void> {
       authSecret,
     )}`;
     const brandCookie = `cc_session=${await signSession(BRAND, authSecret)}`;
+    const otherBrandCookie = `cc_session=${await signSession(
+      OTHER_BRAND,
+      authSecret,
+    )}`;
     const adminCookie = `cc_session=${await signSession(ADMIN, authSecret)}`;
 
     const [openCampaignRows] = await testConnection.query<RowDataPacket[]>(
@@ -831,6 +847,88 @@ async function main(): Promise<void> {
       );
       assert.match(html, /Payment summary/);
       assert.match(html, /Recent activity/);
+    });
+
+    await test("brand applications are status-complete and owner-scoped", async () => {
+      const expectedByBrand = new Map<number, RowDataPacket[]>();
+
+      for (const brandId of [1, 2]) {
+        const [rows] = await testConnection!.query<RowDataPacket[]>(
+          `SELECT a.application_id, a.campaign_id, a.status
+           FROM applications a
+           INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+           WHERE ca.brand_id = ?
+             AND NOT EXISTS (
+               SELECT 1
+               FROM collaborations request_collab
+               WHERE request_collab.application_id = a.application_id
+                 AND request_collab.requested_by IS NOT NULL
+             )
+           ORDER BY a.application_id`,
+          [brandId],
+        );
+        expectedByBrand.set(brandId, rows);
+      }
+      const expectedRows = expectedByBrand.get(1) ?? [];
+
+      const pageResponse = await http("/brand/applications", {
+        cookie: brandCookie,
+      });
+      const pageHtml = await pageResponse.text();
+      assert.equal(pageResponse.status, 200);
+      assert.match(pageHtml, /Creator pipeline/);
+
+      const response = await http("/api/brand/applications", {
+        cookie: brandCookie,
+      });
+      const body = await json(response);
+      const applications = (
+        (body.data as Record<string, unknown>).applications as Array<
+          Record<string, unknown>
+        >
+      );
+
+      assert.equal(response.status, 200);
+      assert.deepEqual(
+        applications
+          .map((application) => Number(application.applicationId))
+          .sort((left, right) => left - right),
+        expectedRows
+          .map((row) => Number(row.application_id))
+          .sort((left, right) => left - right),
+      );
+      assert.ok(
+        applications.every((application) =>
+          ["Pending", "Accepted", "Rejected"].includes(
+            String(application.status),
+          ),
+        ),
+      );
+      for (const status of ["Pending", "Accepted", "Rejected"]) {
+        assert.equal(
+          applications.filter((application) => application.status === status)
+            .length,
+          expectedRows.filter((row) => row.status === status).length,
+        );
+      }
+
+      const otherBrandResponse = await http("/api/brand/applications", {
+        cookie: otherBrandCookie,
+      });
+      const otherBrandBody = await json(otherBrandResponse);
+      const otherBrandApplications = (
+        (otherBrandBody.data as Record<string, unknown>)
+          .applications as Array<Record<string, unknown>>
+      );
+      assert.equal(otherBrandResponse.status, 200);
+      assert.deepEqual(
+        otherBrandApplications
+          .map((application) => Number(application.applicationId))
+          .sort((left, right) => left - right),
+        (expectedByBrand.get(2) ?? [])
+          .map((row) => Number(row.application_id))
+          .sort((left, right) => left - right),
+      );
     });
 
     await test("brand campaign list, creation, and management remain owner-scoped", async () => {

@@ -1,23 +1,38 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 
-import { SectionPlaceholder } from "@/components/dashboard/SectionPlaceholder";
+import { BrandCampaignForm } from "@/components/campaigns/BrandCampaignForm";
+import { PageHeader } from "@/components/dashboard/PageHeader";
+import { requireRole } from "@/lib/auth/guards";
+import { listCampaignCategoryOptions } from "@/lib/repositories/brand-campaigns";
 
 export const metadata: Metadata = {
   title: "Create campaign",
 };
 
-export default function NewBrandCampaignPage() {
+export default async function NewBrandCampaignPage() {
+  const user = await requireRole("Brand");
+  if (!user.brandProfile) {
+    notFound();
+  }
+  const categories = await listCampaignCategoryOptions();
+
   return (
-    <SectionPlaceholder
-      eyebrow="New campaign"
-      title="Create campaign"
-      description="Turn a brief into a structured campaign that creators can apply to."
-      features={[
-        "Set the campaign category, budget, and delivery window.",
-        "Define platform requirements and required deliverables.",
-        "Publish the campaign to the creator marketplace.",
-      ]}
-      note="The campaign builder will be delivered in Phase 5. No campaign records are created from this page yet."
-    />
+    <>
+      <PageHeader
+        eyebrow="New campaign"
+        title="Create campaign"
+        description="Publish a campaign brief for creators using a budget and delivery window that fit your plan."
+        actions={
+          <Link className="btn btn-secondary" href="/brand/campaigns">
+            Back to campaigns
+          </Link>
+        }
+      />
+      <section className="panel brand-campaign-builder">
+        <BrandCampaignForm categories={categories} />
+      </section>
+    </>
   );
 }

@@ -77,6 +77,7 @@ export async function listBrandApplications(
        INNER JOIN creators cr ON cr.creator_id = a.creator_id
        INNER JOIN users u ON u.user_id = cr.user_id
        WHERE ca.brand_id = ?
+         AND NOT EXISTS (SELECT 1 FROM collaborations request_collab WHERE request_collab.application_id = a.application_id AND request_collab.requested_by IS NOT NULL)
        ORDER BY
          CASE WHEN a.status = 'Pending' THEN 0 ELSE 1 END,
          a.applied_date DESC, a.application_id DESC`,
@@ -90,6 +91,7 @@ export async function listBrandApplications(
        INNER JOIN applications a ON a.creator_id = cr.creator_id
        INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
        WHERE ca.brand_id = ?
+         AND NOT EXISTS (SELECT 1 FROM collaborations request_collab WHERE request_collab.application_id = a.application_id AND request_collab.requested_by IS NOT NULL)
        GROUP BY cr.creator_id, sa.account_id, sa.platform, sa.username,
                 sa.followers, sa.engagement_rate
        ORDER BY cr.creator_id ASC, sa.followers DESC, sa.account_id ASC`,
@@ -143,7 +145,8 @@ export type ApplicationDecisionErrorCode =
   | "APPLICATION_NOT_FOUND"
   | "APPLICATION_NOT_PENDING"
   | "CAMPAIGN_FULL"
-  | "COLLABORATION_EXISTS";
+  | "COLLABORATION_EXISTS"
+  | "COLLABORATION_REQUEST";
 
 export class ApplicationDecisionError extends Error {
   constructor(
@@ -169,6 +172,7 @@ type LockedApplicationRow = RowDataPacket & {
   application_id: number;
   campaign_id: number;
   status: ApplicationStatus;
+  requested_by: "Brand" | "Creator" | null;
 };
 
 type AcceptedCountRow = RowDataPacket & {
@@ -250,9 +254,11 @@ async function lockApplicationForBrand(
 
   const [applicationLockedRows] =
     await connection.execute<LockedApplicationRow[]>(
-      `SELECT application_id, campaign_id, status
-       FROM applications
-       WHERE application_id = ? AND campaign_id = ?
+      `SELECT a.application_id, a.campaign_id, a.status,
+              (SELECT co.requested_by FROM collaborations co
+               WHERE co.application_id = a.application_id LIMIT 1) AS requested_by
+       FROM applications a
+       WHERE a.application_id = ? AND a.campaign_id = ?
        FOR UPDATE`,
       [applicationId, campaign.campaign_id],
     );
@@ -262,6 +268,13 @@ async function lockApplicationForBrand(
     throw new ApplicationDecisionError(
       "APPLICATION_NOT_FOUND",
       "This application could not be found.",
+    );
+  }
+
+  if (application.requested_by !== null) {
+    throw new ApplicationDecisionError(
+      "COLLABORATION_REQUEST",
+      "This collaboration request must be accepted or rejected from the requests section.",
     );
   }
 

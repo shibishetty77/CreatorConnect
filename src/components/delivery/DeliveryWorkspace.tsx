@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { WorkspaceEmptyState } from "@/components/dashboard/WorkspaceEmptyState";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { CollaborationRecord } from "@/lib/repositories/collaborations";
 import type {
@@ -429,15 +431,30 @@ export function DeliveryWorkspace({ role }: { role: WorkspaceRole }) {
       ) : null}
 
       {deliverables.length === 0 ? (
-        <section className="panel">
-          <p className="empty-note">
-            {filters.q || filters.status !== "all" || filters.due !== "all"
-              ? "No deliverables match these filters."
+        <WorkspaceEmptyState
+          title={
+            filters.q || filters.status !== "all" || filters.due !== "all"
+              ? "No matching deliverables"
+              : "No deliverables yet"
+          }
+          description={
+            filters.q || filters.status !== "all" || filters.due !== "all"
+              ? "Try changing the search, status, or due-date filters."
               : role === "creator"
                 ? "Deliverables from your active collaborations will appear here."
-                : "Your collaborations do not have any deliverables yet."}
-          </p>
-        </section>
+                : "Create delivery milestones from an active collaboration to track creator work."
+          }
+          action={
+            !filters.q && filters.status === "all" && filters.due === "all" ? (
+              <Link
+                className="btn btn-secondary"
+                href={`/${role}/collaborations`}
+              >
+                View collaborations
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
         <>
           <div className="panel-grid">

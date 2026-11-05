@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { WorkspaceEmptyState } from "@/components/dashboard/WorkspaceEmptyState";
 import {
   formatCurrency,
   formatDate,
@@ -319,16 +320,30 @@ export function PaymentsWorkspace({ role }: { role: PaymentRole }) {
       ) : null}
 
       {payments.length === 0 ? (
-        <section className="panel">
-          <p className="empty-note">
-            {filters.q || filters.status !== "all"
-              ? "No payments match these filters."
-              : "No payment records are available."}
-          </p>
-          {role === "brand" ? (
-            <p>Open a collaboration to create a full-settlement payment.</p>
-          ) : null}
-        </section>
+        <WorkspaceEmptyState
+          title={
+            role === "creator"
+              ? "No payments yet"
+              : "No payment records yet"
+          }
+          description={
+            role === "creator"
+              ? "Payments for your collaborations will appear here when a brand records them."
+              : "Payment records for your collaborations will appear here."
+          }
+          detail={
+            role === "brand"
+              ? "Open an active collaboration to create a full-settlement payment."
+              : undefined
+          }
+          action={
+            role === "brand" ? (
+              <Link className="btn btn-secondary" href="/brand/collaborations">
+                View collaborations
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
         <>
           {role === "creator" ? (

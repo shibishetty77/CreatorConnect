@@ -8,6 +8,7 @@ import {
   createPayment,
   listPaymentsForParty,
 } from "@/lib/repositories/finance";
+import { recordPaymentCreated } from "@/lib/platform-events";
 import {
   financeIdParamSchema,
   paymentCreateSchema,
@@ -94,6 +95,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       brandId: actor.user.brandProfile.brandId,
       collaborationId: parsedId.data,
       payment: parsedBody.data,
+    });
+    await recordPaymentCreated({
+      paymentId: result.paymentId,
+      brandUserId: actor.user.userId,
     });
     return apiSuccess(result, 201);
   } catch (error) {

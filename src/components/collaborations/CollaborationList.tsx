@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { WorkspaceEmptyState } from "@/components/dashboard/WorkspaceEmptyState";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import type {
+  CollaborationListStatus,
   CollaborationRecord,
-  CollaborationStatus,
 } from "@/lib/repositories/collaborations";
 
 type CollaborationListResponse = {
@@ -17,7 +18,7 @@ type CollaborationListResponse = {
     page?: number;
     pageSize?: number;
     totalPages?: number;
-    statusCounts?: Record<CollaborationStatus, number>;
+    statusCounts?: Record<CollaborationListStatus, number>;
   };
   error?: { message: string };
 };
@@ -47,11 +48,20 @@ export function CollaborationList({ role }: CollaborationListProps) {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [statusCounts, setStatusCounts] = useState<
-    Record<CollaborationStatus, number>
+    Record<CollaborationListStatus, number>
   >({ Active: 0, Completed: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    function refresh() {
+      setRetry((current) => current + 1);
+    }
+
+    window.addEventListener("collaborations:refresh", refresh);
+    return () => window.removeEventListener("collaborations:refresh", refresh);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -190,15 +200,20 @@ export function CollaborationList({ role }: CollaborationListProps) {
           </button>
         </section>
       ) : collaborations.length === 0 ? (
-        <section className="panel">
-          <p className="empty-note">
-            {filters.q || filters.status !== "all"
-              ? "No collaborations match these filters."
+        <WorkspaceEmptyState
+          title={
+            filters.q || filters.status !== "all"
+              ? "No matching collaborations"
+              : "No active collaborations yet"
+          }
+          description={
+            filters.q || filters.status !== "all"
+              ? "Try changing the search text or status filter."
               : role === "creator"
-                ? "Accepted applications will appear here."
-                : "Accepted creator applications will appear here."}
-          </p>
-        </section>
+                ? "Collaborations will appear here after a brand accepts your application or proposal."
+                : "Collaborations will appear here after you accept an application or a creator proposal."
+          }
+        />
       ) : (
         <>
           {role === "creator" ? (
@@ -217,11 +232,11 @@ export function CollaborationList({ role }: CollaborationListProps) {
               <article className="panel" key={collaboration.collaborationId}>
                 <header className="panel-header">
                   <div>
-                    <h2>{collaboration.campaignName}</h2>
+                    <h2>{collaboration.title}</h2>
                     <p>
                       {role === "creator"
-                        ? collaboration.brandName
-                        : collaboration.creatorName}
+                        ? `${collaboration.brandName} · ${collaboration.campaignName}`
+                        : `${collaboration.creatorName} · ${collaboration.campaignName}`}
                     </p>
                   </div>
                   <StatusBadge status={collaboration.status} />

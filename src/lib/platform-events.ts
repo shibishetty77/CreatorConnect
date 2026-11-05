@@ -270,8 +270,57 @@ export async function recordRevisionRequested(input: {
 
 type PaymentEventRow = RowDataPacket & {
   creator_user_id: number;
+  brand_user_id: number;
   campaign_name: string;
 };
+
+export async function recordPaymentCreated(input: {
+  paymentId: number;
+  brandUserId: number;
+}): Promise<void> {
+  const payment = await loadEventRow("Payment creation", async () =>
+    (await query<PaymentEventRow[]>(
+      `SELECT creator_user.user_id AS creator_user_id,
+              brand_user.user_id AS brand_user_id,
+              ca.campaign_name
+       FROM payments p
+       INNER JOIN collaborations co ON co.collaboration_id = p.collaboration_id
+       INNER JOIN applications a ON a.application_id = co.application_id
+       INNER JOIN creators cr ON cr.creator_id = a.creator_id
+       INNER JOIN users creator_user ON creator_user.user_id = cr.user_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       INNER JOIN brands b ON b.brand_id = ca.brand_id
+       INNER JOIN users brand_user ON brand_user.user_id = b.user_id
+       WHERE p.payment_id = ? AND brand_user.user_id = ?
+       LIMIT 1`,
+      [input.paymentId, input.brandUserId],
+    ))[0] ?? null,
+  );
+  if (!payment) return;
+
+  await Promise.all([
+    sendMongoNotification({
+      userId: payment.creator_user_id,
+      userRole: "Creator",
+      title: "Payment scheduled",
+      message: `A payment for ${payment.campaign_name} has been recorded.`,
+      type: "payment_created",
+      relatedEntityId: input.paymentId,
+      relatedEntityType: "payment",
+      metadata: { campaignName: payment.campaign_name },
+      dedupeKey: `payment:${input.paymentId}:created`,
+    }),
+    recordMongoActivity({
+      actorId: input.brandUserId,
+      actorRole: "Brand",
+      action: "payment_recorded",
+      entityType: "payment",
+      entityId: input.paymentId,
+      description: `Recorded a payment for ${payment.campaign_name}.`,
+      dedupeKey: `payment:${input.paymentId}:created-activity`,
+    }),
+  ]);
+}
 
 export async function recordPaymentPaid(input: {
   paymentId: number;
@@ -351,4 +400,144 @@ export async function getCollaborationUserIds(
         campaignName: row.campaign_name,
       }
     : null;
+}
+
+type CollaborationRequestEventRow = RowDataPacket & {
+  creator_user_id: number;
+  brand_user_id: number;
+  creator_username: string;
+  brand_name: string;
+  campaign_name: string;
+  title: string;
+  requested_by: "Brand" | "Creator";
+};
+
+async function getCollaborationRequestEventRow(
+  collaborationId: number,
+): Promise<CollaborationRequestEventRow | null> {
+  return loadEventRow("Collaboration request", async () =>
+    (await query<CollaborationRequestEventRow[]>(
+      `SELECT creator_user.user_id AS creator_user_id,
+              brand_user.user_id AS brand_user_id,
+              creator_user.username AS creator_username,
+              b.brand_name, ca.campaign_name,
+              COALESCE(co.title, ca.campaign_name) AS title,
+              co.requested_by
+       FROM collaborations co
+       INNER JOIN applications a ON a.application_id = co.application_id
+       INNER JOIN creators cr ON cr.creator_id = a.creator_id
+       INNER JOIN users creator_user ON creator_user.user_id = cr.user_id
+       INNER JOIN campaigns ca ON ca.campaign_id = a.campaign_id
+       INNER JOIN brands b ON b.brand_id = ca.brand_id
+       INNER JOIN users brand_user ON brand_user.user_id = b.user_id
+       WHERE co.collaboration_id = ?
+         AND co.requested_by IS NOT NULL
+       LIMIT 1`,
+      [collaborationId],
+    ))[0] ?? null,
+  );
+}
+
+export async function recordCollaborationRequestCreated(input: {
+  collaborationId: number;
+  actorUserId: number;
+  actorRole: "Creator" | "Brand";
+}): Promise<void> {
+  const request = await getCollaborationRequestEventRow(input.collaborationId);
+  if (!request) return;
+
+  const recipientUserId =
+    request.requested_by === "Creator"
+      ? request.brand_user_id
+      : request.creator_user_id;
+  const recipientRole = request.requested_by === "Creator" ? "Brand" : "Creator";
+  const recipientLabel =
+    request.requested_by === "Creator" ? request.brand_name : request.creator_username;
+  const actorLabel =
+    input.actorRole === "Creator" ? request.creator_username : request.brand_name;
+
+  await Promise.all([
+    sendMongoNotification({
+      userId: recipientUserId,
+      userRole: recipientRole,
+      title: "New collaboration request",
+      message: `${actorLabel} proposed a collaboration: ${request.title}.`,
+      type: "collaboration_request",
+      relatedEntityId: input.collaborationId,
+      relatedEntityType: "collaboration",
+      metadata: {
+        campaignName: request.campaign_name,
+        requestedBy: request.requested_by,
+      },
+      dedupeKey: `collaboration-request:${input.collaborationId}:created`,
+    }),
+    recordMongoActivity({
+      actorId: input.actorUserId,
+      actorRole: input.actorRole,
+      action: "collaboration_request_created",
+      entityType: "collaboration",
+      entityId: input.collaborationId,
+      description: `Proposed a collaboration with ${recipientLabel} for ${request.campaign_name}.`,
+      metadata: {
+        campaignName: request.campaign_name,
+        requestedBy: request.requested_by,
+      },
+      dedupeKey: `collaboration-request:${input.collaborationId}:created-activity`,
+    }),
+  ]);
+}
+
+export async function recordCollaborationRequestDecision(input: {
+  collaborationId: number;
+  decision: "Accepted" | "Rejected";
+  actorUserId: number;
+  actorRole: "Creator" | "Brand";
+}): Promise<void> {
+  const request = await getCollaborationRequestEventRow(input.collaborationId);
+  if (!request) return;
+
+  const recipientUserId =
+    request.requested_by === "Creator"
+      ? request.creator_user_id
+      : request.brand_user_id;
+  const recipientRole = request.requested_by === "Creator" ? "Creator" : "Brand";
+  const accepted = input.decision === "Accepted";
+
+  await Promise.all([
+    sendMongoNotification({
+      userId: recipientUserId,
+      userRole: recipientRole,
+      title: accepted
+        ? "Collaboration request accepted"
+        : "Collaboration request declined",
+      message: accepted
+        ? `${request.title} was accepted. Your collaboration is now active.`
+        : `${request.title} was declined.`,
+      type: accepted
+        ? "collaboration_request_accepted"
+        : "collaboration_request_rejected",
+      relatedEntityId: input.collaborationId,
+      relatedEntityType: "collaboration",
+      metadata: {
+        campaignName: request.campaign_name,
+        decision: input.decision,
+      },
+      dedupeKey: `collaboration-request:${input.collaborationId}:${input.decision.toLowerCase()}`,
+    }),
+    recordMongoActivity({
+      actorId: input.actorUserId,
+      actorRole: input.actorRole,
+      action: accepted
+        ? "collaboration_request_accepted"
+        : "collaboration_request_rejected",
+      entityType: "collaboration",
+      entityId: input.collaborationId,
+      description: `${accepted ? "Accepted" : "Declined"} the collaboration request for ${request.campaign_name}.`,
+      metadata: {
+        campaignName: request.campaign_name,
+        requestedBy: request.requested_by,
+      },
+      dedupeKey: `collaboration-request:${input.collaborationId}:${input.decision.toLowerCase()}-activity`,
+    }),
+  ]);
 }

@@ -1501,10 +1501,28 @@ p {
 }
 
 .app-content {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex: 1;
   flex-direction: column;
   min-width: 0;
+}
+
+.studio-wallpaper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.studio-wallpaper-icon {
+  position: absolute;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .app-topbar {
@@ -1828,6 +1846,8 @@ p {
 }
 
 .app-main {
+  position: relative;
+  z-index: 1;
   width: min(100%, 81rem);
   margin: 0 auto;
   padding: 2rem clamp(1rem, 3vw, 2.4rem) 3.5rem;

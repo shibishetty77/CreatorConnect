@@ -91,71 +91,55 @@ export default async function HomePage() {
       </header>
 
       <main id="main-content">
-        <section className="landing-hero">
-          <div>
-            <span className="landing-badge">Trusted collaboration workspace</span>
+        <section className="studio-hero">
+          <div className="studio-copy">
+            <span className="studio-kicker">A home for creative partnerships</span>
             <h1>
-              Partnerships that move <span>at creator speed.</span>
+              Where Creators Meet Their{" "}
+              <span>Next Big Collaboration.</span>
             </h1>
-            <p className="landing-lede">
-              CreatorConnect brings creators and brands into one secure
-              workspace for campaigns, deliverables, contracts, and payments.
-              Sign in to the dashboard built for your role.
+            <p className="studio-lede">
+              A more considered way to discover campaigns, build brand
+              relationships, and bring your best work into the world.
             </p>
-            <div className="landing-actions">
+            <div className="studio-actions">
               <Link className="btn btn-primary" href="/register">
-                Get started
+                Find your next collaboration
               </Link>
               <Link className="btn btn-secondary" href="/login">
-                Sign in to your account
+                Sign in
               </Link>
             </div>
-            <p className="landing-note">
-              Role-based access keeps creator, brand, and admin workspaces
-              separate.
+            <p className="studio-footnote">
+              Thoughtful tools for creators, brands, and the teams behind them.
             </p>
           </div>
 
-          <div className="landing-visual" aria-hidden="true">
-            <div className="landing-orbit" />
-            <div className="landing-preview">
-              <div className="landing-preview-head">
-                <div>
-                  <div className="landing-preview-label">Workspace</div>
-                  <h2>Campaign overview</h2>
-                </div>
-                <span className="role-badge">Live</span>
-              </div>
-
-              <div className="landing-preview-grid">
-                <div className="landing-preview-card">
-                  <strong>259</strong>
-                  <span>Seed records verified</span>
-                </div>
-                <div className="landing-preview-card">
-                  <strong>15</strong>
-                  <span>Connected data tables</span>
-                </div>
-              </div>
-
-              <div className="landing-preview-list">
-                <div className="landing-preview-row">
-                  <span className="landing-preview-dot" />
-                  <span>Fashion campaign</span>
-                  <span>In review</span>
-                </div>
-                <div className="landing-preview-row">
-                  <span className="landing-preview-dot" />
-                  <span>Creator payment</span>
-                  <span>Scheduled</span>
-                </div>
-                <div className="landing-preview-row">
-                  <span className="landing-preview-dot" />
-                  <span>Travel collaboration</span>
-                  <span>Completed</span>
-                </div>
-              </div>
+          <div className="studio-art" aria-label="Creative campaign photography">
+            <div className="studio-photo studio-photo-main">
+              <img
+                src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85"
+                alt="Creator portrait in warm natural light"
+                fetchPriority="high"
+              />
             </div>
+            <div className="studio-photo studio-photo-detail">
+              <img
+                src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=700&q=85"
+                alt="Editorial fashion portrait"
+                loading="lazy"
+              />
+            </div>
+            <span className="viewfinder" aria-hidden="true" />
+            <span className="studio-stamp" aria-hidden="true" />
+            <div className="studio-caption">
+              <small>Made for what comes next</small>
+              <strong>Good work finds its people.</strong>
+              <p>Campaigns, conversations, and creative work in one place.</p>
+            </div>
+            <span className="studio-lens-label" aria-hidden="true">
+              CreatorConnect · Studio no. 01
+            </span>
           </div>
         </section>
 
@@ -192,6 +176,13 @@ export default async function HomePage() {
           </article>
         </section>
       </main>
+      <footer className="studio-bottom">
+        <Link className="brand-lockup" href="/">
+          <span className="brand-mark">CC</span>
+          <span>CreatorConnect</span>
+        </Link>
+        <span>One creative workspace. Every collaboration.</span>
+      </footer>
     </div>
   );
 }

@@ -324,15 +324,26 @@ function StatusBreakdown({
   entries: Record<string, number>;
 }) {
   const rows = Object.entries(entries).sort((a, b) => b[1] - a[1]);
+  const maxCount = Math.max(rows[0]?.[1] ?? 0, 1);
   return (
     <section className="panel" aria-label={title}>
       <div className="panel-header"><div><h2>{title}</h2></div></div>
       {rows.length === 0 ? (
         <p className="empty-note">No records found.</p>
       ) : (
-        <ul className="status-list">
+        <ul className="breakdown-list">
           {rows.map(([status, count]) => (
-            <li key={status}><StatusBadge status={status} /><strong>{formatNumber(count)}</strong></li>
+            <li key={status}>
+              <StatusBadge status={status} />
+              <strong>{formatNumber(count)}</strong>
+              <span className="breakdown-meter" aria-hidden="true">
+                <span
+                  style={{
+                    width: `${Math.round((count / maxCount) * 100)}%`,
+                  }}
+                />
+              </span>
+            </li>
           ))}
         </ul>
       )}

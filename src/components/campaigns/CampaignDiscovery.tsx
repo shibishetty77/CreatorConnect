@@ -72,6 +72,11 @@ const fallbackPlatforms = [
 ];
 
 const pageSize = 6;
+const campaignVisuals = [
+  "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1100&q=82",
+  "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1100&q=82",
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1100&q=82",
+];
 
 function filtersFromFormData(formData: FormData): FilterState {
   return {
@@ -375,8 +380,8 @@ export function CampaignDiscovery() {
             campaign{total === 1 ? "" : "s"}.
           </section>
 
-          <div className="panel-grid">
-            {campaigns.map((campaign) => {
+          <div className="panel-grid campaign-gallery">
+            {campaigns.map((campaign, index) => {
               const isApplying = applyingCampaignIds.has(campaign.campaignId);
               const isFull = campaign.remainingSlots <= 0;
               const hasApplied = campaign.applicationStatus !== null;
@@ -386,130 +391,148 @@ export function CampaignDiscovery() {
                 campaign.eligible && !applicationsClosed && !isFull;
 
               return (
-                <article className="panel" key={campaign.campaignId}>
-                  <div className="page-heading">
-                    <div>
-                      <span className="page-eyebrow">
-                        {campaign.categoryName ?? "Campaign"}
-                      </span>
-                      <h2>{campaign.campaignName}</h2>
-                      <p>{campaign.brandName}</p>
-                    </div>
-                    <div className="status-stack">
-                      <StatusBadge status={campaign.status} />
-                      {campaign.applicationStatus ? (
-                        <StatusBadge status={campaign.applicationStatus} />
-                      ) : null}
-                    </div>
+                <article
+                  className="panel campaign-card"
+                  key={campaign.campaignId}
+                >
+                  <div className="campaign-card-visual" aria-hidden="true">
+                    <img
+                      src={campaignVisuals[index % campaignVisuals.length]}
+                      alt=""
+                      loading="lazy"
+                    />
                   </div>
+                  <div className="campaign-card-content">
+                    <div className="page-heading">
+                      <div>
+                        <span className="page-eyebrow">
+                          {campaign.categoryName ?? "Campaign"}
+                        </span>
+                        <h2>{campaign.campaignName}</h2>
+                        <p>{campaign.brandName}</p>
+                      </div>
+                      <div className="status-stack">
+                        <StatusBadge status={campaign.status} />
+                        {campaign.applicationStatus ? (
+                          <StatusBadge status={campaign.applicationStatus} />
+                        ) : null}
+                      </div>
+                    </div>
 
-                  {campaign.description ? <p>{campaign.description}</p> : null}
+                    {campaign.description ? <p>{campaign.description}</p> : null}
 
-                  <dl className="campaign-facts">
-                    <div>
-                      <dt>Total campaign budget</dt>
-                      <dd>{formatCurrency(campaign.budget)}</dd>
-                    </div>
-                    <div>
-                      <dt>Campaign dates</dt>
-                      <dd>
-                        {formatDate(campaign.startDate)} to{" "}
-                        {formatDate(campaign.endDate)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Minimum followers per account</dt>
-                      <dd>{formatNumber(campaign.minFollowers)}</dd>
-                    </div>
-                    <div>
-                      <dt>Accepted creator slots remaining</dt>
-                      <dd>{formatNumber(campaign.remainingSlots)}</dd>
-                    </div>
-                  </dl>
+                    <dl className="campaign-facts">
+                      <div>
+                        <dt>Total campaign budget</dt>
+                        <dd>{formatCurrency(campaign.budget)}</dd>
+                      </div>
+                      <div>
+                        <dt>Campaign dates</dt>
+                        <dd>
+                          {formatDate(campaign.startDate)} to{" "}
+                          {formatDate(campaign.endDate)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Minimum followers per account</dt>
+                        <dd>{formatNumber(campaign.minFollowers)}</dd>
+                      </div>
+                      <div>
+                        <dt>Accepted creator slots remaining</dt>
+                        <dd>{formatNumber(campaign.remainingSlots)}</dd>
+                      </div>
+                    </dl>
 
-                  <section aria-label={`Requirements for ${campaign.campaignName}`}>
-                    <h3>Required platforms and deliverables</h3>
-                    {campaign.requirements.length === 0 ? (
-                      <p>No platform-specific requirements.</p>
-                    ) : (
-                      <ul>
-                        {campaign.requirements.map((requirement) => (
-                          <li key={requirement.requirementId}>
-                            {requirement.platform ?? "Any platform"}
-                            {requirement.minEngagementRate !== null
-                              ? ` - at least ${formatPercent(requirement.minEngagementRate)} engagement`
-                              : ""}
-                            {requirement.requiredNiche
-                              ? ` - niche: ${requirement.requiredNiche} (informational)`
-                              : ""}
-                          </li>
+                    <section
+                      aria-label={`Requirements for ${campaign.campaignName}`}
+                    >
+                      <h3>Required platforms and deliverables</h3>
+                      {campaign.requirements.length === 0 ? (
+                        <p>No platform-specific requirements.</p>
+                      ) : (
+                        <ul>
+                          {campaign.requirements.map((requirement) => (
+                            <li key={requirement.requirementId}>
+                              {requirement.platform ?? "Any platform"}
+                              {requirement.minEngagementRate !== null
+                                ? ` - at least ${formatPercent(requirement.minEngagementRate)} engagement`
+                                : ""}
+                              {requirement.requiredNiche
+                                ? ` - niche: ${requirement.requiredNiche} (informational)`
+                                : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="field-hint">
+                        Deliverables are assigned by the brand after your
+                        application is accepted.
+                      </p>
+                    </section>
+
+                    {hasApplied &&
+                    !applicationSuccesses[campaign.campaignId] ? (
+                      <p className="form-success" role="status">
+                        You have already applied to this campaign.
+                      </p>
+                    ) : null}
+                    {applicationSuccesses[campaign.campaignId] ? (
+                      <p className="form-success" role="status">
+                        {applicationSuccesses[campaign.campaignId]}
+                      </p>
+                    ) : null}
+                    {applicationErrors[campaign.campaignId] ? (
+                      <p className="form-error" role="alert">
+                        {applicationErrors[campaign.campaignId]}
+                      </p>
+                    ) : null}
+                    {!campaign.eligible && !hasApplied ? (
+                      <ul
+                        className="form-error"
+                        aria-label="Eligibility requirements"
+                      >
+                        {campaign.eligibilityReasons.map((reason) => (
+                          <li key={reason}>{reason}</li>
                         ))}
                       </ul>
-                    )}
-                    <p className="field-hint">
-                      Deliverables are assigned by the brand after your
-                      application is accepted.
-                    </p>
-                  </section>
-
-                  {hasApplied && !applicationSuccesses[campaign.campaignId] ? (
-                    <p className="form-success" role="status">
-                      You have already applied to this campaign.
-                    </p>
-                  ) : null}
-                  {applicationSuccesses[campaign.campaignId] ? (
-                    <p className="form-success" role="status">
-                      {applicationSuccesses[campaign.campaignId]}
-                    </p>
-                  ) : null}
-                  {applicationErrors[campaign.campaignId] ? (
-                    <p className="form-error" role="alert">
-                      {applicationErrors[campaign.campaignId]}
-                    </p>
-                  ) : null}
-                  {!campaign.eligible && !hasApplied ? (
-                    <ul className="form-error" aria-label="Eligibility requirements">
-                      {campaign.eligibilityReasons.map((reason) => (
-                        <li key={reason}>{reason}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {applicationsClosed && !hasApplied ? (
-                    <p className="form-error" role="status">
-                      Applications are closed for this campaign.
-                    </p>
-                  ) : null}
-                  {isFull && !hasApplied ? (
-                    <p className="form-error" role="status">
-                      This campaign has reached its creator limit.
-                    </p>
-                  ) : null}
-
-                  <div className="page-actions">
-                    <Link
-                      className="btn btn-secondary"
-                      href={`/creator/campaigns/${campaign.campaignId}`}
-                    >
-                      View campaign
-                    </Link>
-                    {!hasApplied ? (
-                      <button
-                        className="btn btn-primary"
-                        type="button"
-                        disabled={!canApply || isApplying}
-                        onClick={() => void applyToCampaign(campaign)}
-                      >
-                        {isApplying
-                          ? "Applying..."
-                          : applicationsClosed
-                            ? "Applications closed"
-                            : isFull
-                              ? "Campaign full"
-                              : campaign.eligible
-                                ? "Apply"
-                                : "Not eligible"}
-                      </button>
                     ) : null}
+                    {applicationsClosed && !hasApplied ? (
+                      <p className="form-error" role="status">
+                        Applications are closed for this campaign.
+                      </p>
+                    ) : null}
+                    {isFull && !hasApplied ? (
+                      <p className="form-error" role="status">
+                        This campaign has reached its creator limit.
+                      </p>
+                    ) : null}
+
+                    <div className="page-actions">
+                      <Link
+                        className="btn btn-secondary"
+                        href={`/creator/campaigns/${campaign.campaignId}`}
+                      >
+                        View campaign
+                      </Link>
+                      {!hasApplied ? (
+                        <button
+                          className="btn btn-primary"
+                          type="button"
+                          disabled={!canApply || isApplying}
+                          onClick={() => void applyToCampaign(campaign)}
+                        >
+                          {isApplying
+                            ? "Applying..."
+                            : applicationsClosed
+                              ? "Applications closed"
+                              : isFull
+                                ? "Campaign full"
+                                : campaign.eligible
+                                  ? "Apply"
+                                  : "Not eligible"}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </article>
               );

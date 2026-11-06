@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+
 type AuthShellProps = {
   children: ReactNode;
 };
@@ -46,6 +48,9 @@ export function AuthShell({ children }: AuthShellProps) {
       </aside>
 
       <main className="auth-main" id="main-content">
+        <div className="auth-theme-toggle">
+          <ThemeToggle />
+        </div>
         <div className="auth-mobile-brand">
           <Link className="brand-lockup" href="/">
             <span className="brand-mark">CC</span>

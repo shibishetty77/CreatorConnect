@@ -7,6 +7,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { NotificationBell } from "@/components/dashboard/NotificationBell";
+import { StudioWallpaper } from "@/components/dashboard/StudioWallpaper";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import type { Role } from "@/lib/auth/constants";
 import { initials } from "@/lib/format";
 import {
@@ -145,6 +147,7 @@ export function DashboardShell({
       ) : null}
 
       <div className="app-content">
+        <StudioWallpaper />
         <header className="app-topbar">
           <button
             className="mobile-menu-button"
@@ -174,6 +177,7 @@ export function DashboardShell({
           </div>
 
           <NotificationBell key={userId} role={role} />
+          <ThemeToggle />
 
           <div className="topbar-user">
             <span className="topbar-avatar" aria-hidden="true">

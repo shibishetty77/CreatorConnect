@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { getCurrentUser } from "@/lib/auth/guards";
 import { dashboardForRole } from "@/lib/auth/constants";
 
@@ -73,6 +74,7 @@ export default async function HomePage() {
         </Link>
 
         <nav className="landing-nav-actions" aria-label="Account">
+          <ThemeToggle />
           {dashboardHref ? (
             <Link className="btn btn-primary" href={dashboardHref}>
               Open dashboard
